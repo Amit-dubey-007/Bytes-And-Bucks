@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+from decimal import Decimal
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,12 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config("SECRET_KEY")
-DEBUG = config("DEBUG", default=False, cast=bool)
+DEBUG = config("DEBUG", default=True, cast=bool)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="127.0.0.1,localhost",
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
+)
 
 
 # Application definition
@@ -39,9 +41,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Third-party apps
+    'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'django_filters',
+    # Local apps
+    'products.apps.ProductsConfig',
+    'accounts.apps.AccountsConfig',
+    'orders.apps.OrdersConfig',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -121,6 +133,61 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (Uploaded product images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# CORS configuration for Next.js / React dev frontend
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000",
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
+)
+CORS_ALLOW_CREDENTIALS = True
+
+# Django REST Framework configuration
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 12,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+}
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
+
+# MilletMarg Cafe & Store Provisional Location (Indore, MP, India)
+SHOP_LATITUDE = config("SHOP_LATITUDE", default=Decimal("22.6955176"), cast=Decimal)
+SHOP_LONGITUDE = config("SHOP_LONGITUDE", default=Decimal("75.8333253"), cast=Decimal)
+SHOP_NAME = config("SHOP_NAME", default="MilletMarg — Healthy Cafe & Millet Store")
+SHOP_ADDRESS = config("SHOP_ADDRESS", default="Indore, Madhya Pradesh, India")
+
+# Routing & Delivery Configuration
+ROUTING_PROVIDER = config("ROUTING_PROVIDER", default="openrouteservice")
+OPENROUTESERVICE_API_KEY = config("OPENROUTESERVICE_API_KEY", default="")
+ROUTING_TIMEOUT_SECONDS = config("ROUTING_TIMEOUT_SECONDS", default=5, cast=int)
+MAX_DELIVERY_DISTANCE_KM = config("MAX_DELIVERY_DISTANCE_KM", default=Decimal("20.0"), cast=Decimal)
+
+# Owner WhatsApp & Frontend URL
+OWNER_WHATSAPP_NUMBER = config("OWNER_WHATSAPP_NUMBER", default="918349309523")
+FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="http://localhost:3000")
 
 
 # Email
@@ -131,3 +198,12 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Store Manual Payment Configuration (Stage 4)
+STORE_UPI_ID = config("STORE_UPI_ID", default="milletmarg@upi")
+STORE_ACCOUNT_HOLDER = config("STORE_ACCOUNT_HOLDER", default="MilletMarg Healthy Cafe")
+STORE_BANK_NAME = config("STORE_BANK_NAME", default="State Bank of India")
+STORE_BANK_ACCOUNT_NO = config("STORE_BANK_ACCOUNT_NO", default="9876543210123")
+STORE_BANK_IFSC = config("STORE_BANK_IFSC", default="SBIN0001234")
+MAX_RECEIPT_FILE_SIZE_MB = config("MAX_RECEIPT_FILE_SIZE_MB", default=5, cast=int)
+
