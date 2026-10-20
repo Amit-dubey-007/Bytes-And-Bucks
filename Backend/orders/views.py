@@ -12,7 +12,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import Address
+from accounts.models import Address, validate_indian_phone_number
 from accounts.permissions import IsOwner
 from products.models import Product
 from .delivery import calculate_delivery_fees, get_road_distance_km, RoutingServiceError
@@ -31,6 +31,7 @@ from .serializers import (
     OwnerOrderListSerializer,
     OwnerOrderDetailSerializer,
     OrderApprovalSerializer,
+    OrderDriverUpdateSerializer,
     OrderRejectionSerializer,
     PaymentVerificationSerializer,
     PaymentRejectionSerializer,
@@ -40,6 +41,7 @@ from .serializers import (
     OrderDispatchSerializer,
     DeliveryStatusUpdateSerializer,
     ReviewModerationSerializer,
+    parse_estimated_delivery_time,
 )
 
 
@@ -183,19 +185,27 @@ def _resolve_checkout_address(user, validated_data):
     addr_id = validated_data.get('address_id')
     new_addr = validated_data.get('new_address')
     save_addr = validated_data.get('save_address', False)
-    phone = validated_data.get('phone_number') or ''
-    recipient = validated_data.get('recipient_name') or ''
+    phone = (validated_data.get('phone_number') or '').strip()
+    recipient = (validated_data.get('recipient_name') or '').strip()
     room_number = validated_data.get('room_number') or ''
 
     source_address = None
+
+    user_profile = getattr(user, 'profile', None)
+    profile_name = (user_profile.display_name if user_profile else '').strip() or user.get_full_name().strip() or user.username
+    profile_phone = (user_profile.phone_number if user_profile else '').strip()
 
     if addr_id:
         source_address = Address.objects.filter(id=addr_id, user=user).first()
         if not source_address:
             raise ValidationError({"address_id": ["Address not found or does not belong to you."]})
 
-        recipient_name = recipient or source_address.recipient_name
-        phone_number = phone or source_address.phone_number
+        recipient_name = recipient or source_address.recipient_name or profile_name
+        phone_number = phone or source_address.phone_number or profile_phone
+        if not phone_number:
+            raise ValidationError({"phone_number": ["Phone number is required."]})
+        validate_indian_phone_number(phone_number)
+
         lat = source_address.latitude
         lon = source_address.longitude
 
@@ -216,13 +226,20 @@ def _resolve_checkout_address(user, validated_data):
             "formatted_address": source_address.formatted_address,
         }
     else:
+        recipient_name = recipient or (new_addr.get('recipient_name') if new_addr else '').strip() or profile_name
+        phone_number = phone or (new_addr.get('phone_number') if new_addr else '').strip() or profile_phone
+
+        if not recipient_name:
+            raise ValidationError({"recipient_name": ["Recipient name is required."]})
+        if not phone_number:
+            raise ValidationError({"phone_number": ["Phone number is required."]})
+        validate_indian_phone_number(phone_number)
+
         # Validate required fields in new_address
-        for req_field in ['recipient_name', 'phone_number', 'address_line', 'city', 'postal_code', 'latitude', 'longitude']:
-            if not new_addr.get(req_field):
+        for req_field in ['address_line', 'city', 'postal_code', 'latitude', 'longitude']:
+            if not new_addr or not new_addr.get(req_field):
                 raise ValidationError({"new_address": [f"'{req_field}' is required in new_address."]})
 
-        recipient_name = recipient or new_addr['recipient_name']
-        phone_number = phone or new_addr['phone_number']
         lat = Decimal(str(new_addr['latitude']))
         lon = Decimal(str(new_addr['longitude']))
 
@@ -793,22 +810,51 @@ class OwnerOrderDetailView(APIView):
     """
     GET /api/owner/orders/<public_id>/
     Complete order details including items, address snapshot, payment status, and receipt history.
+    PATCH /api/owner/orders/<public_id>/
+    Updates driver details or internal notes without changing order status.
     """
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get(self, request, public_id):
         order = get_object_or_404(
-            Order.objects.select_related('user').prefetch_related('items', 'receipt_history'),
+            Order.objects.select_related('user', 'payment_verified_by').prefetch_related('items', 'receipt_history'),
             public_id=public_id
         )
         serializer = OwnerOrderDetailSerializer(order, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def patch(self, request, public_id):
+        order = get_object_or_404(Order, public_id=public_id)
+        serializer = OrderDriverUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        driver_name = serializer.validated_data.get('driver_name')
+        driver_phone = serializer.validated_data.get('driver_phone')
+        raw_est = serializer.validated_data.get('estimated_delivery_time')
+        internal_note = serializer.validated_data.get('internal_note')
+
+        update_fields = ['updated_at']
+        if driver_name is not None and driver_name.strip():
+            order.driver_name = driver_name.strip()
+            update_fields.append('driver_name')
+        if driver_phone is not None and driver_phone.strip():
+            order.driver_phone = driver_phone.strip()
+            update_fields.append('driver_phone')
+        if raw_est is not None:
+            order.estimated_delivery_time = parse_estimated_delivery_time(raw_est)
+            update_fields.append('estimated_delivery_time')
+        if internal_note is not None and internal_note.strip():
+            order.internal_note = internal_note.strip()
+            update_fields.append('internal_note')
+
+        order.save(update_fields=update_fields)
+        return Response(OwnerOrderDetailSerializer(order, context={'request': request}).data, status=status.HTTP_200_OK)
+
 
 class OwnerOrderApproveView(APIView):
     """
     POST /api/owner/orders/<public_id>/approve/
-    Approves a pending order and assigns payment instructions.
+    Approves a pending order and assigns payment instructions and optional driver details.
     """
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
@@ -825,19 +871,34 @@ class OwnerOrderApproveView(APIView):
 
         instructions = serializer.validated_data.get('payment_instructions') or get_default_payment_instructions(order)
         internal_note = serializer.validated_data.get('internal_note', '')
+        driver_name = serializer.validated_data.get('driver_name', '').strip()
+        driver_phone = serializer.validated_data.get('driver_phone', '').strip()
+        raw_est = serializer.validated_data.get('estimated_delivery_time')
 
         with transaction.atomic():
             order.status = Order.STATUS_APPROVED
             order.payment_instructions = instructions
+            update_fields = ['status', 'payment_instructions', 'updated_at']
             if internal_note:
                 order.internal_note = internal_note
-            order.save(update_fields=['status', 'payment_instructions', 'internal_note', 'updated_at'])
+                update_fields.append('internal_note')
+            if driver_name:
+                order.driver_name = driver_name
+                update_fields.append('driver_name')
+            if driver_phone:
+                order.driver_phone = driver_phone
+                update_fields.append('driver_phone')
+            if raw_est:
+                order.estimated_delivery_time = parse_estimated_delivery_time(raw_est)
+                update_fields.append('estimated_delivery_time')
+
+            order.save(update_fields=update_fields)
 
             create_notification(
                 order.user,
                 Notification.TYPE_ORDER_APPROVED,
                 f"Order {order.reference} Approved!",
-                "Your order has been approved by MilletMarg! Please check the payment instructions and upload your payment proof.",
+                "Your order has been approved by MilletMarg! Please check payment instructions.",
                 order=order
             )
 
@@ -886,7 +947,7 @@ class OwnerOrderRejectView(APIView):
 class OwnerPaymentVerifyView(APIView):
     """
     POST /api/owner/orders/<public_id>/verify-payment/
-    Marks manual payment as verified.
+    Marks manual payment as verified without requiring receipt upload.
     """
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
@@ -897,9 +958,9 @@ class OwnerPaymentVerifyView(APIView):
                 {"detail": f"Cannot verify payment for order with status '{order.status}'. Order must be approved first."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if order.payment_status != Order.PAYMENT_SUBMITTED:
+        if order.payment_status not in [Order.PAYMENT_UNPAID, Order.PAYMENT_SUBMITTED, Order.PAYMENT_REJECTED]:
             return Response(
-                {"detail": f"Cannot verify payment for order with payment status '{order.payment_status}'. Payment proof must be submitted first."},
+                {"detail": f"Payment is already '{order.payment_status}'."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -910,9 +971,12 @@ class OwnerPaymentVerifyView(APIView):
         with transaction.atomic():
             order.payment_status = Order.PAYMENT_VERIFIED
             order.payment_verified_at = timezone.now()
+            order.payment_verified_by = request.user
+            update_fields = ['payment_status', 'payment_verified_at', 'payment_verified_by', 'updated_at']
             if internal_note:
                 order.internal_note = internal_note
-            order.save(update_fields=['payment_status', 'payment_verified_at', 'internal_note', 'updated_at'])
+                update_fields.append('internal_note')
+            order.save(update_fields=update_fields)
 
             latest_receipt = order.receipt_history.first()
             if latest_receipt:
@@ -923,7 +987,7 @@ class OwnerPaymentVerifyView(APIView):
                 order.user,
                 Notification.TYPE_PAYMENT_VERIFIED,
                 f"Payment Verified: {order.reference}",
-                "Your payment proof has been verified by MilletMarg. We are preparing your fresh millet order!",
+                "Your payment has been manually verified by MilletMarg. We are preparing your fresh millet order!",
                 order=order
             )
 
@@ -1149,9 +1213,16 @@ class OwnerOrderDispatchView(APIView):
         serializer = OrderDispatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        driver_name = serializer.validated_data['driver_name']
-        driver_phone = serializer.validated_data['driver_phone']
-        estimated_delivery_time = serializer.validated_data.get('estimated_delivery_time')
+        driver_name = (serializer.validated_data.get('driver_name') or '').strip() or order.driver_name
+        driver_phone = (serializer.validated_data.get('driver_phone') or '').strip() or order.driver_phone
+        if not driver_name:
+            raise ValidationError({"driver_name": ["Driver name is required for dispatch."]})
+        if not driver_phone:
+            raise ValidationError({"driver_phone": ["Driver phone number is required for dispatch."]})
+        validate_indian_phone_number(driver_phone)
+
+        raw_est = serializer.validated_data.get('estimated_delivery_time')
+        estimated_delivery_time = parse_estimated_delivery_time(raw_est) if raw_est else order.estimated_delivery_time
         note = serializer.validated_data.get('note', '')
 
         with transaction.atomic():

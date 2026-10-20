@@ -175,6 +175,14 @@ class Order(models.Model):
     )
     payment_submitted_at = models.DateTimeField(null=True, blank=True)
     payment_verified_at = models.DateTimeField(null=True, blank=True)
+    payment_verified_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='verified_orders',
+        help_text="Store owner/staff member who verified manual payment"
+    )
     internal_note = models.TextField(
         blank=True,
         default='',

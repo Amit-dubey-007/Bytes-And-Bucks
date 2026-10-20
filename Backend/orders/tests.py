@@ -989,3 +989,184 @@ class Stage5DeliveryManagementTests(APITestCase):
         review.refresh_from_db()
         self.assertFalse(review.is_visible)
 
+
+class BugFixVerificationTests(APITestCase):
+    """
+    Direct tests verifying the 5 critical bug fixes:
+    1. Owner WhatsApp order URL contains owner dashboard link and order ref.
+    2. Owner payment verification without customer receipt upload; records verifier and timestamp.
+    3. Non-owners (customers, developers) are blocked by server-side IsOwner permission.
+    4. Driver details can be added during approval or updated later via PATCH.
+    5. Customer isolation: customers cannot see other customers' orders or driver details.
+    6. Checkout customer name and phone autofill from profile and validation.
+    """
+    def setUp(self):
+        self.customer = User.objects.create_user(username="cust_test", email="cust@milletmarg.com")
+        self.customer_profile, _ = UserProfile.objects.get_or_create(
+            user=self.customer,
+            defaults={
+                "role": UserProfile.ROLE_CUSTOMER,
+                "display_name": "Test Customer",
+                "phone_number": "9876543210"
+            }
+        )
+        self.customer_token, _ = Token.objects.get_or_create(user=self.customer)
+
+        self.other_customer = User.objects.create_user(username="other_cust", email="other@milletMarg.com")
+        self.other_customer_token, _ = Token.objects.get_or_create(user=self.other_customer)
+
+        self.developer = User.objects.create_user(username="dev_test", email="dev@milletmarg.com")
+        self.dev_profile, _ = UserProfile.objects.get_or_create(
+            user=self.developer,
+            defaults={"role": UserProfile.ROLE_DEVELOPER, "display_name": "Test Developer"}
+        )
+        self.dev_token, _ = Token.objects.get_or_create(user=self.developer)
+
+        self.owner = User.objects.create_user(username="owner_test", email="owner@milletmarg.com")
+        self.owner_profile, _ = UserProfile.objects.get_or_create(
+            user=self.owner,
+            defaults={"role": UserProfile.ROLE_OWNER, "display_name": "Test Owner"}
+        )
+        self.owner_token, _ = Token.objects.get_or_create(user=self.owner)
+
+        self.product = Product.objects.create(
+            name="Barnyard Millet Dosa Mix",
+            slug="barnyard-dosa-mix",
+            price=Decimal("150.00"),
+            weight_grams=500,
+            is_available=True,
+            stock_quantity=50
+        )
+
+        self.address = Address.objects.create(
+            user=self.customer,
+            label="Home",
+            recipient_name="Test Customer",
+            phone_number="9876543210",
+            address_line="502 Ring Road",
+            city="Indore",
+            state="Madhya Pradesh",
+            postal_code="452001",
+            latitude=Decimal("22.7196"),
+            longitude=Decimal("75.8577"),
+        )
+
+        self.order = Order.objects.create(
+            user=self.customer,
+            status=Order.STATUS_PENDING,
+            payment_status=Order.PAYMENT_UNPAID,
+            subtotal=Decimal("150.00"),
+            road_distance_km=Decimal("4.5"),
+            billable_distance_km=5,
+            delivery_fee=Decimal("50.00"),
+            delivery_fee_charged=Decimal("50.00"),
+            free_delivery_threshold=Decimal("500.00"),
+            total=Decimal("200.00"),
+            recipient_name="Test Customer",
+            phone_number="9876543210",
+            address_snapshot={"address_line": "502 Ring Road", "city": "Indore"}
+        )
+
+    def test_whatsapp_url_links_to_owner_order_page(self):
+        """WhatsApp message must link directly to the owner order management page."""
+        url = generate_whatsapp_order_url(self.order)
+        self.assertIn("wa.me/918349309523", url)
+        self.assertIn(f"/owner/orders/{self.order.public_id}", url)
+        self.assertIn(self.order.reference, url)
+
+    def test_customer_and_developer_cannot_perform_owner_actions(self):
+        """Customer and Developer roles must receive 403 Forbidden on owner endpoints."""
+        approve_url = reverse("owner-order-approve", kwargs={"public_id": self.order.public_id})
+        verify_url = reverse("owner-payment-verify", kwargs={"public_id": self.order.public_id})
+
+        # As Customer
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+        res_cust_app = self.client.post(approve_url, {})
+        self.assertEqual(res_cust_app.status_code, status.HTTP_403_FORBIDDEN)
+        res_cust_ver = self.client.post(verify_url, {})
+        self.assertEqual(res_cust_ver.status_code, status.HTTP_403_FORBIDDEN)
+
+        # As Developer
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.dev_token.key}")
+        res_dev_app = self.client.post(approve_url, {})
+        self.assertEqual(res_dev_app.status_code, status.HTTP_403_FORBIDDEN)
+        res_dev_ver = self.client.post(verify_url, {})
+        self.assertEqual(res_dev_ver.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_can_verify_payment_without_receipt_upload(self):
+        """Owner can manually verify payment for approved unpaid order without receipt file."""
+        self.order.status = Order.STATUS_APPROVED
+        self.order.payment_status = Order.PAYMENT_UNPAID
+        self.order.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.owner_token.key}")
+        verify_url = reverse("owner-payment-verify", kwargs={"public_id": self.order.public_id})
+        res = self.client.post(verify_url, {"internal_note": "Verified via shop PhonePe UPI"})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.payment_status, Order.PAYMENT_VERIFIED)
+        self.assertEqual(self.order.status, Order.STATUS_APPROVED)  # Order status not accidentally changed
+        self.assertEqual(self.order.payment_verified_by, self.owner)
+        self.assertIsNotNone(self.order.payment_verified_at)
+        self.assertIn("PhonePe", self.order.internal_note)
+
+    def test_driver_details_can_be_added_during_approval(self):
+        """Owner can enter driver details during approval without forcing immediate dispatch."""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.owner_token.key}")
+        approve_url = reverse("owner-order-approve", kwargs={"public_id": self.order.public_id})
+        res = self.client.post(approve_url, {
+            "payment_instructions": "UPI: milletmarg@icici",
+            "driver_name": "Mukesh Kumar",
+            "driver_phone": "9876543210",
+            "estimated_delivery_time": "30-40 mins"
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.STATUS_APPROVED)
+        self.assertEqual(self.order.driver_name, "Mukesh Kumar")
+        self.assertEqual(self.order.driver_phone, "9876543210")
+        self.assertIsNotNone(self.order.estimated_delivery_time)
+
+    def test_driver_details_can_be_updated_later_via_patch(self):
+        """Owner can update driver details on an approved order without approving a second time."""
+        self.order.status = Order.STATUS_APPROVED
+        self.order.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.owner_token.key}")
+        detail_url = reverse("owner-order-detail", kwargs={"public_id": self.order.public_id})
+        res = self.client.patch(detail_url, {
+            "driver_name": "Suresh Fleet",
+            "driver_phone": "9876543210",
+            "estimated_delivery_time": "25 mins"
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.driver_name, "Suresh Fleet")
+        self.assertEqual(self.order.driver_phone, "9876543210")
+
+    def test_customer_cannot_view_another_customers_order_or_driver(self):
+        """Customer B cannot retrieve Customer A's order details or driver details."""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.other_customer_token.key}")
+        detail_url = reverse("order-detail", kwargs={"public_id": self.order.public_id})
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("orders.views.get_road_distance_km")
+    def test_checkout_autofills_name_and_phone_from_profile(self, mock_distance):
+        """Checkout should prefill recipient name and phone from profile if omitted from payload."""
+        mock_distance.return_value = Decimal("4.0")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+
+        # Omit recipient_name and phone_number from top level
+        res = self.client.post(reverse("checkout-buy-now"), {
+            "product_id": self.product.id,
+            "quantity": 1,
+            "address_id": self.address.id
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        data = res.json()
+        self.assertEqual(data["recipient_name"], "Test Customer")
+        self.assertEqual(data["phone_number"], "9876543210")
+
+

@@ -13,11 +13,11 @@ def generate_whatsapp_order_url(order):
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
 
     order_ref = f"MM-{str(order.public_id)[:8].upper()}"
-    details_url = f"{frontend_base}/orders/{order.public_id}/details"
+    owner_order_url = f"{frontend_base}/owner/orders/{order.public_id}"
 
     message = (
         f"Hi MilletMarg! I would like to place order {order_ref}. "
-        f"Please review my order here: {details_url}. "
+        f"Please review and manage my order here: {owner_order_url}. "
         f"Please confirm availability and payment instructions."
     )
 

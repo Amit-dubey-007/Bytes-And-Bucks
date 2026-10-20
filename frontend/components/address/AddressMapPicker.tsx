@@ -5,9 +5,9 @@ import { MapPin, Navigation, Loader2, AlertCircle, Info } from "lucide-react";
 import { reverseGeocode, GeocodingResult } from "@/lib/geocoding";
 import type { Map as LeafletMap, Marker as LeafletMarker, LeafletMouseEvent } from "leaflet";
 
-// Default shop provisional coordinates (Indore, MP)
-const DEFAULT_SHOP_LAT = 22.6955176;
-const DEFAULT_SHOP_LNG = 75.8333253;
+// Default shop coordinates (Indore, MP)
+export const DEFAULT_SHOP_LAT = 22.6955176;
+export const DEFAULT_SHOP_LNG = 75.8333253;
 
 interface AddressMapPickerProps {
   initialLat?: number;
@@ -24,45 +24,62 @@ export default function AddressMapPicker({
   const mapInstanceRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
 
+  // Keep latest onLocationSelect in a ref so callback changes don't re-trigger map effects
+  const onLocationSelectRef = useRef(onLocationSelect);
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
+
+  // Request counter to discard out-of-order reverse-geocoding responses
+  const latestRequestIdRef = useRef(0);
+
   const [position, setPosition] = useState<[number, number]>([initialLat, initialLng]);
   const [locating, setLocating] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [geocodedAddress, setGeocodedAddress] = useState<string>("");
 
-  const handleNewLocation = useCallback(
-    async (lat: number, lng: number) => {
-      const fixedLat = parseFloat(lat.toFixed(6));
-      const fixedLng = parseFloat(lng.toFixed(6));
-      setPosition([fixedLat, fixedLng]);
-      setGeocoding(true);
+  const updateLocation = useCallback(async (lat: number, lng: number) => {
+    const fixedLat = parseFloat(lat.toFixed(6));
+    const fixedLng = parseFloat(lng.toFixed(6));
+    setPosition([fixedLat, fixedLng]);
+    setLocationError(null);
 
-      try {
-        const geoResult = await reverseGeocode(fixedLat, fixedLng);
-        if (geoResult?.formatted_address) {
-          setGeocodedAddress(geoResult.formatted_address);
-        }
-        onLocationSelect(fixedLat, fixedLng, geoResult);
-      } catch {
-        onLocationSelect(fixedLat, fixedLng, null);
-      } finally {
+    const requestId = ++latestRequestIdRef.current;
+    setGeocoding(true);
+
+    try {
+      const geoResult = await reverseGeocode(fixedLat, fixedLng);
+      // Discard stale responses if a newer location was clicked in the meantime
+      if (requestId !== latestRequestIdRef.current) return;
+
+      if (geoResult?.formatted_address) {
+        setGeocodedAddress(geoResult.formatted_address);
+      }
+      onLocationSelectRef.current(fixedLat, fixedLng, geoResult);
+    } catch {
+      if (requestId !== latestRequestIdRef.current) return;
+      onLocationSelectRef.current(fixedLat, fixedLng, null);
+    } finally {
+      if (requestId === latestRequestIdRef.current) {
         setGeocoding(false);
       }
-    },
-    [onLocationSelect]
-  );
+    }
+  }, []);
 
+  // Initialize Leaflet Map ONCE on mount
   useEffect(() => {
     let isMounted = true;
 
-    // Dynamically load Leaflet on client side
     const initMap = async () => {
       if (!mapContainerRef.current || mapInstanceRef.current) return;
 
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
 
-      // Custom icon fixes for Leaflet in bundlers
+      if (!isMounted || !mapContainerRef.current) return;
+
+      // Delivery location pin (emerald theme)
       const deliveryIcon = L.divIcon({
         className: "custom-delivery-marker",
         html: `
@@ -78,6 +95,7 @@ export default function AddressMapPicker({
         popupAnchor: [0, -34],
       });
 
+      // Shop marker (gold theme)
       const shopIcon = L.divIcon({
         className: "custom-shop-marker",
         html: `
@@ -94,8 +112,6 @@ export default function AddressMapPicker({
         iconAnchor: [16, 32],
         popupAnchor: [0, -32],
       });
-
-      if (!mapContainerRef.current) return;
 
       const map = L.map(mapContainerRef.current, {
         center: [initialLat, initialLng],
@@ -119,27 +135,25 @@ export default function AddressMapPicker({
         draggable: true,
       }).addTo(map);
 
-      marker.bindPopup("<strong>Your Selected Delivery Location</strong>").openPopup();
+      marker.bindPopup("<strong>Selected Delivery Location</strong><br/>Drag pin or click map to move").openPopup();
 
       // On marker drag
       marker.on("dragend", () => {
         const latLng = marker.getLatLng();
-        handleNewLocation(latLng.lat, latLng.lng);
+        updateLocation(latLng.lat, latLng.lng);
       });
 
       // On map click
       map.on("click", (e: LeafletMouseEvent) => {
         marker.setLatLng(e.latlng);
-        handleNewLocation(e.latlng.lat, e.latlng.lng);
+        updateLocation(e.latlng.lat, e.latlng.lng);
       });
 
       mapInstanceRef.current = map;
       markerRef.current = marker;
 
-      // Initial reverse geocode
-      if (isMounted) {
-        handleNewLocation(initialLat, initialLng);
-      }
+      // Initial reverse geocode only on initial mount
+      updateLocation(initialLat, initialLng);
     };
 
     initMap();
@@ -149,12 +163,29 @@ export default function AddressMapPicker({
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        markerRef.current = null;
       }
     };
-  }, [handleNewLocation, initialLat, initialLng]);
+    // Only run on mount with initial coordinates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUseCurrentLocation = () => {
     setLocationError(null);
+
+    // Browser security check: Geolocation requires HTTPS or localhost
+    if (typeof window !== "undefined") {
+      const isLocalhost = Boolean(
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1" ||
+        window.location.hostname === "[::1]"
+      );
+      if (!isLocalhost && window.location.protocol !== "https:") {
+        setLocationError("Browser geolocation requires a secure HTTPS connection. Please select your location on the map.");
+        return;
+      }
+    }
+
     if (!navigator.geolocation) {
       setLocationError("Geolocation is not supported by your current browser.");
       return;
@@ -169,19 +200,20 @@ export default function AddressMapPicker({
         const lng = parseFloat(pos.coords.longitude.toFixed(6));
 
         if (mapInstanceRef.current && markerRef.current) {
-          mapInstanceRef.current.flyTo([lat, lng], 16, { duration: 1.2 });
+          mapInstanceRef.current.flyTo([lat, lng], 16, { duration: 1.0 });
           markerRef.current.setLatLng([lat, lng]);
+          markerRef.current.openPopup();
         }
-        handleNewLocation(lat, lng);
+        updateLocation(lat, lng);
       },
       (err) => {
         setLocating(false);
         if (err.code === err.PERMISSION_DENIED) {
           setLocationError("Location permission denied. You can click on the map or type your address manually.");
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setLocationError("Location information is currently unavailable.");
+          setLocationError("Location information is currently unavailable from your device. Please click on the map to set your pin.");
         } else if (err.code === err.TIMEOUT) {
-          setLocationError("Location request timed out. Please select location on the map.");
+          setLocationError("Location request timed out. Please select your location on the map.");
         } else {
           setLocationError("Unable to retrieve location. Please pin your location on the map.");
         }

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
@@ -14,6 +15,7 @@ import {
   rejectOrder,
   verifyOrderPayment,
   rejectOrderPayment,
+  updateOwnerOrderDriver,
   updateDeliveryStatus,
   dispatchOrder,
   getOwnerReviews,
@@ -59,7 +61,11 @@ import {
   Navigation,
 } from "lucide-react";
 
-export default function OwnerDashboardPage() {
+function OwnerDashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderQueryParam = searchParams.get("order");
+
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -229,6 +235,13 @@ export default function OwnerDashboardPage() {
     }
   };
 
+  // Auto-inspect order if order query parameter is provided
+  useEffect(() => {
+    if (isOwner && orderQueryParam) {
+      handleInspectOrder(orderQueryParam);
+    }
+  }, [isOwner, orderQueryParam]);
+
   // Submit Action (Approve / Reject / Verify / Reject Payment / Preparing / Ready / Dispatch / Delivered)
   const handleExecuteAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,9 +254,18 @@ export default function OwnerDashboardPage() {
       let updated: OwnerOrderDetailData;
 
       if (actionType === "approve") {
+        const cleanPhone = driverPhoneInput.replace(/\D/g, "");
+        if (cleanPhone && (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone))) {
+          setActionError("Driver phone must be a valid 10-digit Indian mobile number.");
+          setSubmittingAction(false);
+          return;
+        }
         updated = await approveOrder(selectedOrder.public_id, {
           payment_instructions: paymentInstructionsInput.trim() || undefined,
           internal_note: internalNoteInput.trim() || undefined,
+          driver_name: driverNameInput.trim() || undefined,
+          driver_phone: cleanPhone || undefined,
+          estimated_delivery_time: estimatedDeliveryTimeInput.trim() || undefined,
         });
         setSuccessMessage(`Order ${updated.reference} approved successfully!`);
       } else if (actionType === "reject") {
@@ -319,6 +341,33 @@ export default function OwnerDashboardPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Action failed";
+      setActionError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleSaveDriverDetails = async () => {
+    if (!selectedOrder) return;
+    const cleanPhone = driverPhoneInput.replace(/\D/g, "");
+    if (cleanPhone && (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone))) {
+      setActionError("Driver phone must be a valid 10-digit Indian mobile number.");
+      return;
+    }
+    setSubmittingAction(true);
+    setActionError(null);
+    try {
+      const updated = await updateOwnerOrderDriver(selectedOrder.public_id, {
+        driver_name: driverNameInput.trim() || undefined,
+        driver_phone: cleanPhone || undefined,
+        estimated_delivery_time: estimatedDeliveryTimeInput.trim() || undefined,
+      });
+      setSelectedOrder(updated);
+      setSuccessMessage(`Driver details updated for order ${updated.reference}.`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+      loadDashboardData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update driver details";
       setActionError(msg);
     } finally {
       setSubmittingAction(false);
@@ -1186,17 +1235,61 @@ export default function OwnerDashboardPage() {
 
                         <form onSubmit={handleExecuteAction} className="space-y-3">
                           {actionType === "approve" && (
-                            <div>
-                              <label className="block font-bold text-stone-800 mb-1">
-                                Payment Instructions (Customizable or leave as default):
-                              </label>
-                              <textarea
-                                rows={4}
-                                value={paymentInstructionsInput}
-                                onChange={(e) => setPaymentInstructionsInput(e.target.value)}
-                                placeholder="Store UPI ID, Bank Transfer details, and instructions..."
-                                className="w-full p-2.5 rounded-lg border border-stone-300 text-xs font-mono bg-white focus:outline-none"
-                              />
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block font-bold text-stone-800 mb-1">
+                                  Payment Instructions (Customizable or leave as default):
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={paymentInstructionsInput}
+                                  onChange={(e) => setPaymentInstructionsInput(e.target.value)}
+                                  placeholder="Store UPI ID, Bank Transfer details, and instructions..."
+                                  className="w-full p-2.5 rounded-lg border border-stone-300 text-xs font-mono bg-white focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block font-bold text-stone-800 mb-1">
+                                    Assign Driver Name (Optional):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={driverNameInput}
+                                    onChange={(e) => setDriverNameInput(e.target.value)}
+                                    placeholder="e.g. Ramesh"
+                                    className="w-full p-2.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-stone-800 mb-1">
+                                    Driver Phone (Optional):
+                                  </label>
+                                  <input
+                                    type="tel"
+                                    value={driverPhoneInput}
+                                    onChange={(e) => setDriverPhoneInput(e.target.value)}
+                                    placeholder="10-digit number"
+                                    className="w-full p-2.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {actionType === "verify" && (
+                            <div className="space-y-3">
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed">
+                                <p className="font-bold mb-1">Confirm Manual Payment Verification</p>
+                                <p>
+                                  Are you sure you want to mark payment for order <strong>{selectedOrder.reference}</strong> as <strong>Verified</strong>?
+                                  You confirm that you have verified receipt of <strong className="text-emerald-800">₹{selectedOrder.total}</strong> outside the website (e.g. via UPI notification, bank transfer SMS, or WhatsApp confirmation).
+                                </p>
+                              </div>
+                              <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-stone-600 text-xs">
+                                Verified By: <strong className="text-stone-900">{profile?.display_name || "Store Owner"} ({profile?.email})</strong>
+                              </div>
                             </div>
                           )}
 
@@ -1360,22 +1453,30 @@ export default function OwnerDashboardPage() {
                       </>
                     )}
 
-                    {/* Verify / Reject Payment buttons for Approved & Submitted orders */}
-                    {selectedOrder.status === "approved" && selectedOrder.payment_status === "submitted" && (
-                      <>
+                    {/* Manual Payment Verification (Outside Website) */}
+                    {selectedOrder.status !== "pending" &&
+                      selectedOrder.status !== "rejected" &&
+                      selectedOrder.status !== "cancelled" &&
+                      selectedOrder.payment_status !== "verified" && (
                         <button
                           onClick={() => setActionType("verify")}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm"
+                          className="px-4 py-2 rounded-xl bg-[#C07F00] hover:bg-[#a66d00] text-white font-bold transition shadow-sm inline-flex items-center gap-1.5"
                         >
-                          Verify Payment
+                          <FileCheck className="w-4 h-4" />
+                          Confirm Payment Received
                         </button>
-                        <button
-                          onClick={() => setActionType("reject_payment")}
-                          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition shadow-sm"
-                        >
-                          Reject Payment Proof
-                        </button>
-                      </>
+                    )}
+
+                    {/* Save Driver Details button */}
+                    {selectedOrder.status !== "rejected" && selectedOrder.status !== "cancelled" && (
+                      <button
+                        onClick={handleSaveDriverDetails}
+                        disabled={submittingAction}
+                        className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white font-bold transition shadow-sm inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Truck className="w-4 h-4" />
+                        Save Driver Details
+                      </button>
                     )}
 
                     {/* Stage 5: Fulfillment & Delivery Transition Buttons (Requires Verified Payment) */}
@@ -1439,3 +1540,18 @@ export default function OwnerDashboardPage() {
     </div>
   );
 }
+
+export default function OwnerDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F1E5] text-[#183D2B]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#C07F00]" />
+        </div>
+      }
+    >
+      <OwnerDashboardContent />
+    </Suspense>
+  );
+}
+

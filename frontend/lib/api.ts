@@ -8,17 +8,34 @@ const TOKEN_KEY = "milletmarg_auth_token";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(TOKEN_KEY);
+  try {
+    const local = localStorage.getItem(TOKEN_KEY);
+    if (local) return local;
+  } catch {}
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {}
+  return null;
 }
 
 export function setAuthToken(token: string): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(TOKEN_KEY, token);
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {}
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } catch {}
 }
 
 export function clearAuthToken(): void {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(TOKEN_KEY);
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {}
 }
 
 export interface ApiErrorResponse {
@@ -402,6 +419,8 @@ export interface OrderData {
   payment_rejection_reason?: string;
   payment_submitted_at?: string | null;
   payment_verified_at?: string | null;
+  payment_verified_by?: number | null;
+  payment_verified_by_name?: string | null;
   has_payment_receipt?: boolean;
   receipt_url?: string | null;
   internal_note?: string;
@@ -607,11 +626,32 @@ export async function getOwnerOrderDetail(publicId: string): Promise<OwnerOrderD
 
 export async function approveOrder(
   publicId: string,
-  data?: { payment_instructions?: string; internal_note?: string }
+  data?: {
+    payment_instructions?: string;
+    internal_note?: string;
+    driver_name?: string;
+    driver_phone?: string;
+    estimated_delivery_time?: string;
+  }
 ): Promise<OwnerOrderDetailData> {
   return apiRequest<OwnerOrderDetailData>(`/owner/orders/${publicId}/approve/`, {
     method: "POST",
     body: JSON.stringify(data || {}),
+  });
+}
+
+export async function updateOwnerOrderDriver(
+  publicId: string,
+  data: {
+    driver_name?: string;
+    driver_phone?: string;
+    estimated_delivery_time?: string;
+    internal_note?: string;
+  }
+): Promise<OwnerOrderDetailData> {
+  return apiRequest<OwnerOrderDetailData>(`/owner/orders/${publicId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
   });
 }
 

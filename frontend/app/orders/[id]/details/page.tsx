@@ -9,7 +9,6 @@ import Footer from "@/components/Footer";
 import {
   getOrderByPublicId,
   cancelOrder,
-  uploadPaymentReceipt,
   confirmDelivery,
   submitOrderReview,
   OrderData,
@@ -53,12 +52,7 @@ function OrderDetailsContent() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Receipt Upload State
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [uploadingReceipt, setUploadingReceipt] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   // Stage 5: Delivery Confirmation & Review State
   const [confirmingDelivery, setConfirmingDelivery] = useState(false);
@@ -114,50 +108,7 @@ function OrderDetailsContent() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    // Validate size (max 5MB)
-    const maxBytes = 5 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      setUploadError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds 5 MB limit.`);
-      return;
-    }
-
-    // Validate type
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type.toLowerCase())) {
-      setUploadError("Only JPG, JPEG, PNG, or WEBP images are supported.");
-      return;
-    }
-
-    setReceiptFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setReceiptPreview(objectUrl);
-  };
-
-  const handleUploadReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!receiptFile || !order) return;
-
-    setUploadingReceipt(true);
-    setUploadError(null);
-    try {
-      const updated = await uploadPaymentReceipt(order.public_id, receiptFile);
-      setOrder(updated);
-      setReceiptFile(null);
-      setReceiptPreview(null);
-      setSuccessMessage("Payment receipt submitted successfully! Store owner will verify it shortly.");
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to upload receipt";
-      setUploadError(msg);
-    } finally {
-      setUploadingReceipt(false);
-    }
-  };
 
   const handleConfirmDelivery = async () => {
     if (!order) return;
@@ -483,11 +434,9 @@ function OrderDetailsContent() {
                   <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-xs text-blue-800">
                     <Clock className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-bold text-blue-950">Payment Proof Submitted & Under Review</p>
+                      <p className="font-bold text-blue-950">Payment Notified & Under Review</p>
                       <p className="mt-0.5 text-blue-700">
-                        We received your payment proof
-                        {order.payment_submitted_at && ` on ${new Date(order.payment_submitted_at).toLocaleString("en-IN")}`}.
-                        The store owner is reviewing the transaction details. This page will reflect verification once approved.
+                        We received your payment notice. The store owner will verify the transaction and update your order status.
                       </p>
                     </div>
                   </div>
@@ -498,96 +447,35 @@ function OrderDetailsContent() {
                   <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800">
                     <div className="flex items-center gap-2 font-bold text-red-900 mb-1">
                       <AlertCircle className="w-4 h-4 text-red-600" />
-                      Payment Proof Rejected by Owner
+                      Payment Issue Reported by Owner
                     </div>
                     <p className="pl-6 text-red-700 mb-2">{order.payment_rejection_reason}</p>
                     <p className="pl-6 text-stone-600 italic">
-                      Please upload a clear screenshot showing transaction reference (UTR) and recipient name below.
+                      Please reach out to the store on WhatsApp below to resolve.
                     </p>
                   </div>
                 )}
 
-                {/* Customer Receipt Upload Form (Available for unpaid or rejected proofs) */}
-                {(order.payment_status === "unpaid" || order.payment_status === "rejected") && (
-                  <form onSubmit={handleUploadReceipt} className="space-y-4 pt-2 border-t border-stone-100">
+                {/* WhatsApp Payment Notification Action (When not yet verified) */}
+                {order.payment_status !== "verified" && (
+                  <div className="pt-2 border-t border-stone-100 space-y-3">
+                    <p className="text-xs text-stone-600">
+                      Payment proof upload is not required. You can pay via UPI or Bank transfer using the store instructions above and notify the store on WhatsApp.
+                    </p>
                     <div>
-                      <label className="block text-xs font-bold text-stone-800 mb-1">
-                        {order.payment_status === "rejected" ? "Re-upload Clear Payment Receipt" : "Upload Payment Screenshot or Receipt"}
-                      </label>
-                      <p className="text-xs text-stone-500 mb-2">
-                        Accepted formats: JPG, PNG, WEBP (Maximum size: 5 MB).
-                      </p>
-
-                      <div className="flex items-center gap-3">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          onChange={handleFileChange}
-                          disabled={uploadingReceipt}
-                          className="text-xs text-stone-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-stone-100 file:text-[#183D2B] hover:file:bg-stone-200 cursor-pointer"
-                        />
-
-                        {receiptFile && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReceiptFile(null);
-                              setReceiptPreview(null);
-                              if (fileInputRef.current) fileInputRef.current.value = "";
-                            }}
-                            className="text-xs text-stone-400 hover:text-stone-700 underline"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {uploadError && (
-                      <p className="text-xs font-semibold text-red-600 flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        {uploadError}
-                      </p>
-                    )}
-
-                    {/* Receipt Preview */}
-                    {receiptPreview && (
-                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 inline-block">
-                        <span className="block text-[11px] font-bold text-stone-500 mb-1.5">
-                          Receipt Preview:
-                        </span>
-                        <div className="relative w-48 h-48 rounded-lg overflow-hidden border border-stone-300">
-                          <Image
-                            src={receiptPreview}
-                            alt="Receipt Preview"
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <button
-                        type="submit"
-                        disabled={!receiptFile || uploadingReceipt}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#183D2B] text-white text-xs font-bold hover:bg-[#122e20] transition shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                      <a
+                        href={`https://wa.me/918349309523?text=${encodeURIComponent(
+                          `Hello MilletMarg, I have made payment for Order #${order.reference || order.public_id.slice(0, 8).toUpperCase()} (₹${order.total}).\nName: ${order.recipient_name}\nPhone: ${order.phone_number}\nPlease verify.`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#20ba59] transition shadow"
                       >
-                        {uploadingReceipt ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Uploading & Verifying...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4" />
-                            Submit Payment Proof
-                          </>
-                        )}
-                      </button>
+                        <MessageSquare className="w-4 h-4" />
+                        Notify Store on WhatsApp
+                      </a>
                     </div>
-                  </form>
+                  </div>
                 )}
               </div>
             )}

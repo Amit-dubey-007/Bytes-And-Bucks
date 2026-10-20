@@ -12,6 +12,8 @@ import {
   getCart,
   getProductBySlug,
   getSavedAddresses,
+  getCurrentUserProfile,
+  UserProfileData,
   getDeliveryQuote,
   checkoutBuyNow,
   checkoutCart,
@@ -70,7 +72,9 @@ function CheckoutContent() {
   const [newFormatted, setNewFormatted] = useState("");
 
   // Delivery Notes & Contact
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [contactPhone, setContactPhone] = useState("");
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
   const [deliveryInstructions, setDeliveryInstructions] = useState("");
 
@@ -107,16 +111,38 @@ function CheckoutContent() {
         }
       }
 
-      // 2. Fetch saved addresses
-      const addrRes = await getSavedAddresses();
-      const addrList = addrRes.results || [];
+      // 2. Fetch saved addresses and current profile in parallel
+      const [addrRes, userProfileRes] = await Promise.allSettled([
+        getSavedAddresses(),
+        getCurrentUserProfile(),
+      ]);
+
+      const addrList = addrRes.status === "fulfilled" ? addrRes.value.results || [] : [];
       setAddresses(addrList);
 
-      // Pre-select default address
+      const userProfile = userProfileRes.status === "fulfilled" ? userProfileRes.value : null;
+      if (userProfile) {
+        setProfile(userProfile);
+      }
+
+      // Pre-select default address and autofill name & phone
       const defaultAddr = addrList.find((a) => a.is_default) || addrList[0];
+      const initialName = userProfile?.display_name || defaultAddr?.recipient_name || "";
+      const initialPhone = defaultAddr?.phone_number || userProfile?.phone_number || "";
+
+      if (initialName) {
+        setNewRecipient((prev) => prev || initialName);
+      }
+      if (initialPhone) {
+        setNewPhone((prev) => prev || initialPhone);
+        setContactPhone((prev) => prev || initialPhone);
+      }
+
       if (defaultAddr && defaultAddr.id) {
         setSelectedAddressId(defaultAddr.id);
-        setContactPhone(defaultAddr.phone_number);
+        if (defaultAddr.phone_number) {
+          setContactPhone(defaultAddr.phone_number);
+        }
       } else {
         setIsNewAddress(true);
       }
@@ -181,24 +207,51 @@ function CheckoutContent() {
     }
   }, [fetchQuote, loading]);
 
-  const handleMapLocationSelect = (lat: number, lng: number, geo?: GeocodingResult | null) => {
+  const handleMapLocationSelect = useCallback((lat: number, lng: number, geo?: GeocodingResult | null) => {
     setNewLat(lat.toFixed(6));
     setNewLng(lng.toFixed(6));
     if (geo) {
       if (geo.formatted_address) setNewFormatted(geo.formatted_address);
-      if (geo.road && !newLine) setNewLine(geo.road);
-      if (geo.house_number && !newHouse) setNewHouse(geo.house_number);
+      if (geo.road) setNewLine(geo.road);
+      if (geo.house_number) setNewHouse(geo.house_number);
       if (geo.city) setNewCity(geo.city);
       if (geo.state) setNewState(geo.state);
-      if (geo.postal_code && !newPin) setNewPin(geo.postal_code);
+      if (geo.postal_code) setNewPin(geo.postal_code);
     }
-  };
+  }, []);
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quote?.is_eligible) {
-      alert("Delivery is not available for this location (> 20 km). Please choose another address.");
+      setError("Delivery is not available for this location (> 20 km cafe delivery radius). Please choose an address closer to Indore.");
       return;
+    }
+
+    const targetPhone = contactPhone || newPhone;
+    const cleanPhone = targetPhone.replace(/\D/g, "");
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setError("Please provide a valid 10-digit Indian contact phone number starting with 6, 7, 8, or 9.");
+      return;
+    }
+
+    if (isNewAddress) {
+      const cleanNewPhone = newPhone.replace(/\D/g, "");
+      if (!/^[6-9]\d{9}$/.test(cleanNewPhone)) {
+        setError("Please provide a valid 10-digit recipient phone number for the new delivery address.");
+        return;
+      }
+      if (!newRecipient.trim()) {
+        setError("Recipient name is required for the delivery address.");
+        return;
+      }
+      if (!newLine.trim()) {
+        setError("Street / area address is required. Click the map or enter your street.");
+        return;
+      }
+      if (!newPin.trim()) {
+        setError("Postal code (PIN) is required.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -208,7 +261,7 @@ function CheckoutContent() {
 
     try {
       const checkoutPayload: any = {
-        phone_number: contactPhone || newPhone,
+        phone_number: cleanPhone,
         room_number: roomNumber || newRoom,
         delivery_instructions: deliveryInstructions,
         idempotency_key: idempotencyKey,
@@ -494,46 +547,87 @@ function CheckoutContent() {
                   Delivery Contact & Instructions
                 </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
-                      Confirm Contact Number *
-                    </label>
-                    <input
-                      type="tel"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      required
-                      placeholder="10-digit mobile number"
-                      className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg outline-none"
-                    />
-                  </div>
+                <div className="space-y-4">
+                  {!isEditingPhone && contactPhone && contactPhone.length >= 10 ? (
+                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-emerald-950">Contact Mobile Number Confirmed</p>
+                          <p className="text-xs font-mono text-emerald-800 font-semibold">+91 {contactPhone}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPhone(true)}
+                        className="text-xs font-semibold text-[#183D2B] bg-white hover:bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-200 transition shadow-sm"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-stone-700">
+                          Contact Mobile Number *
+                        </label>
+                        {contactPhone && isEditingPhone && (
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingPhone(false)}
+                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline"
+                          >
+                            Done Editing
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-xs font-medium text-stone-400">+91</span>
+                        <input
+                          type="tel"
+                          value={contactPhone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setContactPhone(val);
+                          }}
+                          required
+                          placeholder="10-digit mobile number"
+                          className="w-full pl-11 pr-3 py-2 text-xs border border-stone-300 rounded-lg outline-none focus:ring-1 focus:ring-[#183D2B]"
+                        />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">
+                        Prefilled from your profile. Order and delivery driver updates will be sent to this number.
+                      </p>
+                    </div>
+                  )}
 
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
-                      Unit / Room Number (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={roomNumber}
-                      onChange={(e) => setRoomNumber(e.target.value)}
-                      placeholder="e.g. Flat 301, Tower B"
-                      className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg outline-none"
-                    />
-                  </div>
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        Unit / Room Number (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={roomNumber}
+                        onChange={(e) => setRoomNumber(e.target.value)}
+                        placeholder="e.g. Flat 301, Tower B"
+                        className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg outline-none"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">
-                    Delivery Instructions (Optional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={deliveryInstructions}
-                    onChange={(e) => setDeliveryInstructions(e.target.value)}
-                    placeholder="e.g. Leave at door, call upon arrival, etc."
-                    className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg outline-none resize-none"
-                  />
+                    <div>
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        Delivery Instructions (Optional)
+                      </label>
+                      <textarea
+                        rows={1}
+                        value={deliveryInstructions}
+                        onChange={(e) => setDeliveryInstructions(e.target.value)}
+                        placeholder="e.g. Leave at door, call upon arrival"
+                        className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg outline-none resize-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

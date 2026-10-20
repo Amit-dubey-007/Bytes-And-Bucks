@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Script from "next/script";
 import Image from "next/image";
@@ -41,20 +42,41 @@ import {
 
 interface GoogleCredentialResponse {
   credential?: string;
+  select_by?: string;
+  [key: string]: unknown;
+}
+
+interface GoogleErrorResponse {
+  type: string;
+  error?: string;
+  detailed_error?: string;
   [key: string]: unknown;
 }
 
 interface GoogleAccountsId {
-  initialize: (config: { client_id: string; callback: (res: GoogleCredentialResponse) => void }) => void;
+  initialize: (config: {
+    client_id: string;
+    callback: (res: GoogleCredentialResponse) => void;
+    auto_select?: boolean;
+    cancel_on_tap_outside?: boolean;
+    context?: string;
+    ux_mode?: "popup" | "redirect";
+    error_callback?: (err: GoogleErrorResponse) => void;
+  }) => void;
   renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
 }
 
-export default function ProfileAndAddressesPage() {
+function ProfileContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [addresses, setAddresses] = useState<AddressData[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [gsiLoaded, setGsiLoaded] = useState(false);
 
   // Profile Edit State
   const [displayName, setDisplayName] = useState("");
@@ -103,6 +125,11 @@ export default function ProfileAndAddressesPage() {
 
       const addressData = await getSavedAddresses();
       setAddresses(addressData.results || []);
+
+      if (redirectParam && redirectParam.startsWith("/")) {
+        router.push(redirectParam);
+        return;
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 401) {
         setProfile(null);
@@ -113,7 +140,7 @@ export default function ProfileAndAddressesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [redirectParam, router]);
 
   useEffect(() => {
     loadUserData();
@@ -138,6 +165,11 @@ export default function ProfileAndAddressesPage() {
       const addressData = await getSavedAddresses();
       setAddresses(addressData.results || []);
       setSuccessMessage("Signed in successfully with Google!");
+
+      if (redirectParam && redirectParam.startsWith("/")) {
+        router.push(redirectParam);
+        return;
+      }
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to authenticate with Google";
@@ -145,33 +177,71 @@ export default function ProfileAndAddressesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [redirectParam, router]);
 
-  // Initialize Google One Tap / Button when script loads
+  // Check if Google Identity Services SDK is already present on window
   useEffect(() => {
     if (typeof window !== "undefined") {
       const win = window as unknown as { google?: { accounts?: { id?: GoogleAccountsId } } };
-      if (win.google?.accounts?.id && googleClientId && !profile) {
-        try {
-          win.google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: handleGoogleCredentialResponse,
-          });
-          const btnElement = document.getElementById("googleSignInBtn");
-          if (btnElement) {
-            win.google.accounts.id.renderButton(btnElement, {
-              theme: "outline",
-              size: "large",
-              text: "signin_with",
-              shape: "rectangular",
-            });
-          }
-        } catch (e) {
-          console.error("Google accounts init error:", e);
-        }
+      if (win.google?.accounts?.id) {
+        setGsiLoaded(true);
       }
     }
+  }, []);
+
+  // Initialize and render Google Sign-In button cleanly
+  const renderGoogleButton = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const win = window as unknown as { google?: { accounts?: { id?: GoogleAccountsId } } };
+    if (!win.google?.accounts?.id || !googleClientId || profile) return;
+
+    const btnElement = document.getElementById("googleSignInBtn");
+    if (!btnElement) return;
+
+    try {
+      // Clear inner content to prevent duplicate iframe rendering
+      btnElement.innerHTML = "";
+
+      win.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredentialResponse,
+        error_callback: (err: GoogleErrorResponse) => {
+          console.error("Google Sign-In error:", err);
+          if (err?.type === "popup_closed") {
+            // User closed the popup manually, not an application error
+            return;
+          }
+          if (err?.type === "popup_failed_to_open") {
+            setAuthError("Sign-in popup was blocked by your browser. Please allow popups for localhost:3000.");
+            return;
+          }
+          setAuthError(
+            err?.detailed_error ||
+            err?.error ||
+            "Google Sign-In failed to load. Please verify that 'http://localhost:3000' is added to Authorized JavaScript origins in Google Cloud Console."
+          );
+        },
+      });
+
+      win.google.accounts.id.renderButton(btnElement, {
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        shape: "rectangular",
+        width: 280,
+      });
+    } catch (e) {
+      console.error("Google accounts init error:", e);
+      setAuthError("Failed to initialize Google Sign-In button.");
+    }
   }, [googleClientId, profile, handleGoogleCredentialResponse]);
+
+  // Trigger button rendering when GSI is ready and user is not authenticated
+  useEffect(() => {
+    if (gsiLoaded && !profile && !loading) {
+      renderGoogleButton();
+    }
+  }, [gsiLoaded, profile, loading, renderGoogleButton]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,18 +274,18 @@ export default function ProfileAndAddressesPage() {
     }
   };
 
-  const handleLocationSelect = (lat: number, lng: number, geo?: GeocodingResult | null) => {
+  const handleLocationSelect = useCallback((lat: number, lng: number, geo?: GeocodingResult | null) => {
     setSelectedLat(lat.toFixed(6));
     setSelectedLng(lng.toFixed(6));
     if (geo) {
       if (geo.formatted_address) setFormattedAddress(geo.formatted_address);
-      if (geo.road && !addressLine) setAddressLine(geo.road);
-      if (geo.house_number && !houseNumber) setHouseNumber(geo.house_number);
+      if (geo.road) setAddressLine(geo.road);
+      if (geo.house_number) setHouseNumber(geo.house_number);
       if (geo.city) setCity(geo.city);
       if (geo.state) setState(geo.state);
-      if (geo.postal_code && !postalCode) setPostalCode(geo.postal_code);
+      if (geo.postal_code) setPostalCode(geo.postal_code);
     }
-  };
+  }, []);
 
   const resetAddressForm = () => {
     setLabel("Home");
@@ -296,27 +366,12 @@ export default function ProfileAndAddressesPage() {
       {/* Load Google Identity Services SDK */}
       <Script
         src="https://accounts.google.com/gsi/client"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         onLoad={() => {
-          const win = window as unknown as { google?: { accounts?: { id?: GoogleAccountsId } } };
-          if (win.google?.accounts?.id && googleClientId && !profile) {
-            try {
-              win.google.accounts.id.initialize({
-                client_id: googleClientId,
-                callback: handleGoogleCredentialResponse,
-              });
-              const btn = document.getElementById("googleSignInBtn");
-              if (btn) {
-                win.google.accounts.id.renderButton(btn, {
-                  theme: "outline",
-                  size: "large",
-                  text: "signin_with",
-                });
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }
+          setGsiLoaded(true);
+        }}
+        onError={() => {
+          setAuthError("Failed to load Google Identity Services script from accounts.google.com");
         }}
       />
 
@@ -359,6 +414,29 @@ export default function ProfileAndAddressesPage() {
             <div className="flex flex-col items-center justify-center min-h-[50px] mb-4">
               <div id="googleSignInBtn" className="inline-block" />
             </div>
+
+            {authError && (
+              <div className="mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900 text-left space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-red-800">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>Sign-In Assistance</span>
+                </div>
+                <p className="text-red-700">{authError}</p>
+                <div className="pt-2 border-t border-red-200/60 text-stone-600">
+                  <p className="font-medium text-stone-700 mb-1">
+                    If the Google window remains blank at <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded">about:blank</code>:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[11px] text-stone-600">
+                    <li>
+                      Ensure <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded">http://localhost:3000</code> is added to <strong>Authorized JavaScript origins</strong> in Google Cloud Console.
+                    </li>
+                    <li>
+                      Disable any browser extension or ad-blocker that might block Google Identity Services popups.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
             {!googleClientId && (
               <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 text-left">
@@ -822,3 +900,18 @@ export default function ProfileAndAddressesPage() {
     </div>
   );
 }
+
+export default function ProfileAndAddressesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F1E5] text-[#183D2B]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#C07F00]" />
+        </div>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
+  );
+}
+

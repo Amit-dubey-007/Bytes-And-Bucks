@@ -1,10 +1,40 @@
 import re
+import datetime
+import urllib.parse
 from decimal import Decimal
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
 from products.models import Product
 from accounts.models import Address, validate_indian_phone_number
 from .models import Cart, CartItem, Order, OrderItem, PaymentReceipt, Notification, DeliveryStatusLog, Review
 from .whatsapp import generate_whatsapp_order_url
+
+
+def parse_estimated_delivery_time(val):
+    """
+    Parses estimated delivery time input flexibly:
+    - If empty/None -> None
+    - If valid ISO datetime string -> parsed datetime
+    - If relative minutes string (e.g. '30-40 mins', '45 min') -> timezone.now() + timedelta
+    """
+    if not val:
+        return None
+    if isinstance(val, (datetime.datetime, datetime.date)):
+        return val
+    if isinstance(val, str):
+        val = val.strip()
+        if not val:
+            return None
+        dt = parse_datetime(val)
+        if dt:
+            return dt
+        nums = re.findall(r'\d+', val)
+        if nums:
+            mins = int(nums[-1])
+            return timezone.now() + datetime.timedelta(minutes=mins)
+    return None
+
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -440,6 +470,7 @@ class OwnerOrderDetailSerializer(serializers.ModelSerializer):
     has_payment_receipt = serializers.SerializerMethodField()
     driver_call_url = serializers.SerializerMethodField()
     driver_whatsapp_url = serializers.SerializerMethodField()
+    payment_verified_by_name = serializers.SerializerMethodField()
     review = ReviewSerializer(read_only=True)
     delivery_logs = DeliveryStatusLogSerializer(many=True, read_only=True)
 
@@ -472,6 +503,8 @@ class OwnerOrderDetailSerializer(serializers.ModelSerializer):
             'internal_note',
             'payment_submitted_at',
             'payment_verified_at',
+            'payment_verified_by',
+            'payment_verified_by_name',
             'has_payment_receipt',
             'receipt_url',
             'receipt_history',
@@ -494,7 +527,22 @@ class OwnerOrderDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_payment_verified_by_name(self, obj):
+        if not obj.payment_verified_by:
+            return None
+        profile = getattr(obj.payment_verified_by, 'profile', None)
+        if profile and profile.display_name:
+            return profile.display_name
+        return obj.payment_verified_by.get_full_name() or obj.payment_verified_by.username
+
     def get_whatsapp_url(self, obj):
+        if obj.phone_number:
+            digits = re.sub(r'\D', '', obj.phone_number)
+            if len(digits) == 10:
+                digits = f"91{digits}"
+            order_ref = f"MM-{str(obj.public_id)[:8].upper()}"
+            msg = urllib.parse.quote(f"Hi {obj.recipient_name}, this is MilletMarg regarding your order {order_ref}.")
+            return f"https://wa.me/{digits}?text={msg}"
         return generate_whatsapp_order_url(obj)
 
     def get_has_payment_receipt(self, obj):
@@ -522,6 +570,26 @@ class OwnerOrderDetailSerializer(serializers.ModelSerializer):
 class OrderApprovalSerializer(serializers.Serializer):
     payment_instructions = serializers.CharField(required=False, allow_blank=True, default='')
     internal_note = serializers.CharField(required=False, allow_blank=True, default='')
+    driver_name = serializers.CharField(required=False, allow_blank=True, default='', max_length=150)
+    driver_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    estimated_delivery_time = serializers.CharField(required=False, allow_blank=True, default='', allow_null=True)
+
+    def validate_driver_phone(self, value):
+        if value and value.strip():
+            validate_indian_phone_number(value.strip())
+        return value.strip() if value else ''
+
+
+class OrderDriverUpdateSerializer(serializers.Serializer):
+    driver_name = serializers.CharField(required=False, allow_blank=True, default='', max_length=150)
+    driver_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    estimated_delivery_time = serializers.CharField(required=False, allow_blank=True, default='', allow_null=True)
+    internal_note = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_driver_phone(self, value):
+        if value and value.strip():
+            validate_indian_phone_number(value.strip())
+        return value.strip() if value else ''
 
 
 class OrderRejectionSerializer(serializers.Serializer):
@@ -543,10 +611,16 @@ class PaymentReceiptUploadSerializer(serializers.Serializer):
 
 
 class OrderDispatchSerializer(serializers.Serializer):
-    driver_name = serializers.CharField(required=True, min_length=2, max_length=150)
-    driver_phone = serializers.CharField(required=True, validators=[validate_indian_phone_number])
-    estimated_delivery_time = serializers.DateTimeField(required=False, allow_null=True)
+    driver_name = serializers.CharField(required=False, allow_blank=True, default='', max_length=150)
+    driver_phone = serializers.CharField(required=False, allow_blank=True, default='')
+    estimated_delivery_time = serializers.CharField(required=False, allow_blank=True, default='', allow_null=True)
     note = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_driver_phone(self, value):
+        if value and value.strip():
+            validate_indian_phone_number(value.strip())
+        return value.strip() if value else ''
+
 
 
 class DeliveryStatusUpdateSerializer(serializers.Serializer):
