@@ -56,12 +56,7 @@ function ValueIcon({ name }: { name: string }) {
 export default function AboutPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F7F1E5] text-[#183D2B]">
-      {/* Top Heritage Notice Strip */}
-      <div className="bg-[#183D2B] text-[#F7F1E5] py-2 px-4 text-center text-xs font-medium tracking-wide">
-        <span className="opacity-90">
-          🌾 Celebrating 5,000 Years of Indian Supergrains · Connecting Farmers &amp; Modern Wellness
-        </span>
-      </div>
+    
 
       {/* Shared Navbar */}
       <Navbar />

@@ -21,13 +21,7 @@ import {
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F7F1E5] text-[#183D2B]">
-      {/* 1. TOP ANNOUNCEMENT BANNER */}
-      <div className="bg-[#183D2B] text-[#F7F1E5] py-2 px-4 text-center text-xs font-medium tracking-wide">
-        <span className="opacity-90">
-          🌾 Freshly Harvested Millets from Southern Plains · Use code{" "}
-          <span className="font-bold text-[#D8A641]">MILLETMUSH</span> for 15% off your first bowl
-        </span>
-      </div>
+      
 
       {/* 2. NAVBAR */}
       <Navbar />

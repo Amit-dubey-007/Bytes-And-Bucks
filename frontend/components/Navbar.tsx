@@ -2,11 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingBag, Menu, X, ArrowRight, Sparkles, CheckCircle2 } from "lucide-react";
+import {
+  Search,
+  ShoppingBag,
+  Menu,
+  X,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -14,33 +23,77 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(1);
 
+  // Handle navbar scroll effect
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 20);
     };
+
+    handleScroll();
+
     window.addEventListener("scroll", handleScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Prevent background scroll when mobile menu or modals are open
+  // Prevent background scrolling when overlays are open
   useEffect(() => {
-    if (mobileMenuOpen || searchOpen || cartOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    const shouldLockScroll = mobileMenuOpen || searchOpen || cartOpen;
+
+    document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [mobileMenuOpen, searchOpen, cartOpen]);
 
+  // Close overlays when navigating to another page
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setSearchOpen(false);
+    setCartOpen(false);
+  }, [pathname]);
+
+  // Close overlays using Escape
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+        setSearchOpen(false);
+        setCartOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
+
+  // Navigation links
   const navLinks = [
-    { name: "Home", href: "/", active: pathname === "/" },
-    { name: "Products", href: "/products", active: pathname === "/products" },
-    { name: "About Us", href: "/about", active: pathname === "/about" },
+    {
+      name: "Home",
+      href: "/",
+      active: pathname === "/",
+    },
+    {
+      name: "Products",
+      href: "/products",
+      active: pathname === "/products",
+    },
+    {
+      name: "About Us",
+      href: "/about",
+      active: pathname === "/about",
+    },
+    {
+      name: "Contact Us",
+      href: "/contact",
+      active: pathname === "/contact",
+    },
   ];
 
+  // Popular searches
   const popularSearches = [
     "Signature MilletBowl",
     "Spiced Chickpea Bowl",
@@ -51,123 +104,109 @@ export default function Navbar() {
 
   return (
     <>
+      {/* MAIN NAVBAR */}
       <header
         className={`sticky top-0 z-40 w-full transition-all duration-300 ${
           isScrolled
-            ? "bg-[#F7F1E5]/95 backdrop-blur-md shadow-xs border-b border-[#EDE2CF]/80 py-3.5"
+            ? "border-b border-[#EDE2CF]/80 bg-[#F7F1E5]/95 py-3.5 shadow-sm backdrop-blur-md"
             : "bg-[#F7F1E5] py-5"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            {/* LEFT: Logo & Brand Symbol */}
+            {/* LOGO */}
             <Link
               href="/"
-              className="flex items-center gap-2.5 group focus:outline-hidden focus:ring-2 focus:ring-[#183D2B]/30 rounded-lg p-1"
+              className="flex items-center rounded-lg focus:outline-none focus:ring-2 focus:ring-[#183D2B]/30"
               aria-label="MilletMarg Home"
             >
-              {/* Botanical Millet Sprig Icon */}
-              <div className="w-9 h-9 rounded-full bg-[#183D2B] flex items-center justify-center text-[#F7F1E5] transition-transform duration-300 group-hover:scale-105 shadow-xs">
-                <svg
-                  className="w-5 h-5 transition-transform duration-300 group-hover:rotate-6"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  {/* Stem */}
-                  <path d="M12 22V6" />
-                  {/* Grains / botanical seeds */}
-                  <path d="M12 7c-2-2-4-1-4 1s2 3 4 3" />
-                  <path d="M12 7c2-2 4-1 4 1s-2 3-4 3" />
-                  <path d="M12 12c-2-2-4-1-4 1s2 3 4 3" />
-                  <path d="M12 12c2-2 4-1 4 1s-2 3-4 3" />
-                  <path d="M12 17c-1.5-1.5-3-0.75-3 0.75s1.5 2.25 3 2.25" />
-                  <path d="M12 17c1.5-1.5 3-0.75 3 0.75s-1.5 2.25-3 2.25" />
-                  {/* Sun halo / seed top */}
-                  <circle cx="12" cy="4" r="1.5" fill="currentColor" stroke="none" />
-                </svg>
-              </div>
-
-              <div className="flex flex-col">
-                <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#183D2B] leading-none">
-                  MilletMarg
-                </span>
-                <span className="text-[10px] uppercase tracking-widest text-[#879568] font-medium mt-0.5">
-                  Farm · Wellness
-                </span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="MilletMarg - Farm and Wellness"
+                width={220}
+                height={70}
+                priority
+                className="h-12 w-auto object-contain sm:h-14"
+              />
             </Link>
 
-            {/* CENTER: Navigation Links (Desktop) */}
-            <nav className="hidden md:flex items-center space-x-8">
+            {/* DESKTOP NAVIGATION */}
+            <nav
+              className="hidden items-center space-x-6 lg:space-x-8 md:flex"
+              aria-label="Main navigation"
+            >
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`text-sm tracking-wide font-medium transition-colors duration-200 relative py-1.5 ${
+                  aria-current={link.active ? "page" : undefined}
+                  className={`relative py-1.5 text-sm font-medium tracking-wide transition-colors duration-200 ${
                     link.active
-                      ? "text-[#183D2B] font-semibold"
+                      ? "font-semibold text-[#183D2B]"
                       : "text-[#252820]/80 hover:text-[#183D2B]"
                   }`}
                 >
                   {link.name}
+
                   {link.active && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#C66A45]" />
+                    <span className="absolute bottom-0 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#C66A45]" />
                   )}
                 </Link>
               ))}
             </nav>
 
-            {/* RIGHT: Actions (Search, Cart, Order Now) */}
+            {/* RIGHT ACTIONS */}
             <div className="flex items-center space-x-2.5 sm:space-x-4">
-              {/* Search Button */}
+              {/* SEARCH BUTTON */}
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="p-2 text-[#183D2B]/85 hover:text-[#183D2B] hover:bg-[#EDE2CF]/60 rounded-full transition-colors duration-200"
-                aria-label="Search millet bowls and products"
+                className="rounded-full p-2 text-[#183D2B]/85 transition-colors duration-200 hover:bg-[#EDE2CF]/60 hover:text-[#183D2B]"
+                aria-label="Open search"
               >
-                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Search className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
 
-              {/* Shopping Bag Button */}
+              {/* SHOPPING BAG */}
               <button
                 type="button"
                 onClick={() => setCartOpen(true)}
-                className="relative p-2 text-[#183D2B]/85 hover:text-[#183D2B] hover:bg-[#EDE2CF]/60 rounded-full transition-colors duration-200"
-                aria-label="Open cart"
+                className="relative rounded-full p-2 text-[#183D2B]/85 transition-colors duration-200 hover:bg-[#EDE2CF]/60 hover:text-[#183D2B]"
+                aria-label={`Open cart, ${cartCount} items`}
               >
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
+
                 {cartCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 text-[10px] font-bold bg-[#C66A45] text-white rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C66A45] text-[10px] font-bold text-white shadow-sm">
                     {cartCount}
                   </span>
                 )}
               </button>
 
-              {/* Primary CTA: Order Now */}
+              {/* ORDER NOW */}
               <a
                 href="/#order"
-                className="hidden sm:inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-[#F7F1E5] bg-[#183D2B] hover:bg-[#10291E] rounded-full transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                className="hidden items-center justify-center rounded-full bg-[#183D2B] px-5 py-2.5 text-sm font-medium text-[#F7F1E5] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#10291E] hover:shadow-md sm:inline-flex"
               >
                 Order Now
               </a>
 
-              {/* Mobile Menu Toggle Button */}
+              {/* MOBILE MENU BUTTON */}
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-[#183D2B] hover:bg-[#EDE2CF]/60 rounded-lg transition-colors duration-200"
+                className="rounded-lg p-2 text-[#183D2B] transition-colors duration-200 hover:bg-[#EDE2CF]/60 md:hidden"
                 aria-expanded={mobileMenuOpen}
-                aria-label="Toggle navigation menu"
+                aria-label={
+                  mobileMenuOpen
+                    ? "Close navigation menu"
+                    : "Open navigation menu"
+                }
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6" />
+                  <X className="h-6 w-6" />
                 ) : (
-                  <Menu className="w-6 h-6" />
+                  <Menu className="h-6 w-6" />
                 )}
               </button>
             </div>
@@ -175,73 +214,101 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* MOBILE MENU DRAWER */}
+      {/* MOBILE MENU */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex flex-col">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-[#10291E]/40 backdrop-blur-xs transition-opacity"
+        <div className="fixed inset-0 z-50 flex flex-col md:hidden">
+          {/* BACKDROP */}
+          <button
+            type="button"
+            className="fixed inset-0 bg-[#10291E]/40 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close navigation menu"
           />
 
-          {/* Slide-down Panel */}
-          <div className="relative bg-[#F7F1E5] border-b border-[#EDE2CF] px-6 pt-6 pb-8 shadow-xl flex flex-col space-y-6 z-10 animate-fade-in-up">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EDE2CF]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[#183D2B] flex items-center justify-center text-[#F7F1E5]">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="font-serif text-xl font-bold text-[#183D2B]">
-                  MilletMarg
-                </span>
-              </div>
+          {/* MENU PANEL */}
+          <div className="animate-fade-in-up relative z-10 flex flex-col space-y-6 border-b border-[#EDE2CF] bg-[#F7F1E5] px-6 pb-8 pt-6 shadow-xl">
+            {/* MOBILE LOGO */}
+            <div className="flex items-center justify-between border-b border-[#EDE2CF] pb-4">
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="MilletMarg Home"
+                className="flex items-center"
+              >
+                <Image
+                  src="/logo.png"
+                  alt="MilletMarg"
+                  width={180}
+                  height={58}
+                  className="h-10 w-auto object-contain"
+                />
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-[#183D2B] hover:bg-[#EDE2CF] rounded-full"
+                className="rounded-full p-2 text-[#183D2B] hover:bg-[#EDE2CF]"
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Mobile Nav Links */}
-            <div className="flex flex-col space-y-3">
+            {/* MOBILE NAVIGATION LINKS */}
+            <nav
+              className="flex flex-col space-y-3"
+              aria-label="Mobile navigation"
+            >
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`text-lg font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-between ${
+                  aria-current={link.active ? "page" : undefined}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2 text-lg font-medium transition-colors ${
                     link.active
-                      ? "bg-[#EDE2CF] text-[#183D2B] font-semibold"
+                      ? "bg-[#EDE2CF] font-semibold text-[#183D2B]"
                       : "text-[#252820] hover:bg-[#EDE2CF]/50"
                   }`}
                 >
                   <span>{link.name}</span>
+
                   {link.active ? (
-                    <span className="w-2 h-2 rounded-full bg-[#C66A45]" />
+                    <span className="h-2 w-2 rounded-full bg-[#C66A45]" />
                   ) : (
-                    <ChevronRightIcon className="w-4 h-4 text-[#879568]" />
+                    <ChevronRightIcon className="h-4 w-4 text-[#879568]" />
                   )}
                 </Link>
               ))}
-            </div>
+            </nav>
 
-            {/* Mobile CTA */}
+            {/* MOBILE SEARCH */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setSearchOpen(true);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-[#183D2B]/20 py-3 text-sm font-semibold text-[#183D2B] transition-colors hover:bg-[#EDE2CF]/60"
+            >
+              <Search className="h-4 w-4" />
+              Search Products
+            </button>
+
+            {/* MOBILE ORDER BUTTON */}
             <div className="pt-2">
               <a
                 href="/#order"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-5 text-base font-semibold text-[#F7F1E5] bg-[#183D2B] hover:bg-[#10291E] rounded-full shadow-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#183D2B] px-5 py-3 text-base font-semibold text-[#F7F1E5] shadow-sm hover:bg-[#10291E]"
               >
                 <span>Order Now</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="h-4 w-4" />
               </a>
             </div>
 
-            {/* Farm Tagline */}
-            <p className="text-center text-xs text-[#879568] tracking-wide font-medium">
+            {/* BRAND TAGLINE */}
+            <p className="text-center text-xs font-medium tracking-wide text-[#879568]">
               Ancient Grains · Modern Wellness · Direct from Farms
             </p>
           </div>
@@ -250,47 +317,59 @@ export default function Navbar() {
 
       {/* SEARCH MODAL */}
       {searchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4">
-          <div
-            className="fixed inset-0 bg-[#10291E]/50 backdrop-blur-xs transition-opacity"
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-16 sm:pt-24">
+          {/* BACKDROP */}
+          <button
+            type="button"
+            className="fixed inset-0 bg-[#10291E]/50 backdrop-blur-sm"
             onClick={() => setSearchOpen(false)}
+            aria-label="Close search"
           />
 
-          <div className="relative w-full max-w-xl bg-[#F7F1E5] rounded-2xl p-6 shadow-2xl border border-[#EDE2CF] z-10 animate-fade-in-up">
-            <div className="flex items-center justify-between pb-3 border-b border-[#EDE2CF]">
-              <div className="flex items-center gap-3 flex-1">
-                <Search className="w-5 h-5 text-[#879568]" />
+          {/* SEARCH PANEL */}
+          <div className="animate-fade-in-up relative z-10 w-full max-w-xl rounded-2xl border border-[#EDE2CF] bg-[#F7F1E5] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#EDE2CF] pb-3">
+              <div className="flex flex-1 items-center gap-3">
+                <Search className="h-5 w-5 text-[#879568]" />
+
                 <input
                   type="text"
                   placeholder="Search bowls, ingredients, dressings..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   autoFocus
-                  className="w-full bg-transparent text-[#183D2B] placeholder-[#879568] focus:outline-hidden text-base font-medium"
+                  className="w-full bg-transparent text-base font-medium text-[#183D2B] placeholder-[#879568] focus:outline-none"
+                  aria-label="Search products"
                 />
               </div>
+
               <button
                 type="button"
                 onClick={() => setSearchOpen(false)}
-                className="p-1.5 text-[#183D2B]/70 hover:text-[#183D2B] rounded-md hover:bg-[#EDE2CF]"
+                className="rounded-md p-1.5 text-[#183D2B]/70 hover:bg-[#EDE2CF] hover:text-[#183D2B]"
+                aria-label="Close search"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
+            {/* POPULAR SEARCHES */}
             <div className="mt-4">
-              <p className="text-xs uppercase tracking-wider font-semibold text-[#879568] mb-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#879568]">
                 Popular Searches
               </p>
+
               <div className="flex flex-wrap gap-2">
                 {popularSearches.map((item) => (
                   <button
                     key={item}
                     type="button"
-                    onClick={() => {
-                      setSearchQuery(item);
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-full bg-[#EDE2CF] hover:bg-[#D8A641]/20 text-[#183D2B] font-medium transition-colors"
+                    onClick={() => setSearchQuery(item)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      searchQuery === item
+                        ? "bg-[#D8A641]/30 text-[#183D2B]"
+                        : "bg-[#EDE2CF] text-[#183D2B] hover:bg-[#D8A641]/20"
+                    }`}
                   >
                     {item}
                   </button>
@@ -298,15 +377,17 @@ export default function Navbar() {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#EDE2CF] flex justify-between items-center text-xs text-[#879568]">
+            {/* SEARCH FOOTER */}
+            <div className="mt-6 flex items-center justify-between border-t border-[#EDE2CF] pt-4 text-xs text-[#879568]">
               <span>Press ESC to close</span>
-              <a
-                href="#milletbowl"
+
+              <Link
+                href="/products"
                 onClick={() => setSearchOpen(false)}
-                className="text-[#C66A45] font-semibold hover:underline"
+                className="font-semibold text-[#C66A45] hover:underline"
               >
-                View all menu items →
-              </a>
+                View all products →
+              </Link>
             </div>
           </div>
         </div>
@@ -315,63 +396,83 @@ export default function Navbar() {
       {/* CART PREVIEW DRAWER */}
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="fixed inset-0 bg-[#10291E]/50 backdrop-blur-xs transition-opacity"
+          {/* BACKDROP */}
+          <button
+            type="button"
+            className="fixed inset-0 bg-[#10291E]/50 backdrop-blur-sm"
             onClick={() => setCartOpen(false)}
+            aria-label="Close cart"
           />
 
-          <div className="relative w-full max-w-md bg-[#F7F1E5] h-full shadow-2xl flex flex-col z-10 p-6 border-l border-[#EDE2CF] animate-fade-in-up">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EDE2CF]">
+          {/* CART PANEL */}
+          <div className="animate-fade-in-up relative z-10 flex h-full w-full max-w-md flex-col border-l border-[#EDE2CF] bg-[#F7F1E5] p-6 shadow-2xl">
+            {/* CART HEADER */}
+            <div className="flex items-center justify-between border-b border-[#EDE2CF] pb-4">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-[#183D2B]" />
+                <ShoppingBag className="h-5 w-5 text-[#183D2B]" />
+
                 <h3 className="font-serif text-xl font-bold text-[#183D2B]">
                   Your Harvest Bag
                 </h3>
               </div>
+
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
-                className="p-2 text-[#183D2B] hover:bg-[#EDE2CF] rounded-full"
+                className="rounded-full p-2 text-[#183D2B] hover:bg-[#EDE2CF]"
+                aria-label="Close cart"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto py-6 space-y-4">
+            {/* CART ITEMS */}
+            <div className="flex-1 space-y-4 overflow-y-auto py-6">
               {cartCount > 0 ? (
-                <div className="bg-white/70 rounded-2xl p-4 border border-[#EDE2CF] flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-[#EDE2CF] overflow-hidden flex-shrink-0 relative">
-                    <img
+                <div className="flex items-center gap-4 rounded-2xl border border-[#EDE2CF] bg-white/70 p-4">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-[#EDE2CF]">
+                    <Image
                       src="/millet-bowl-hero.jpg"
                       alt="Signature MilletBowl"
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="64px"
+                      className="object-cover"
                     />
                   </div>
+
                   <div className="flex-1">
-                    <h4 className="font-serif font-bold text-sm text-[#183D2B]">
+                    <h4 className="font-serif text-sm font-bold text-[#183D2B]">
                       Signature MilletBowl
                     </h4>
-                    <p className="text-xs text-[#879568] mt-0.5">
+
+                    <p className="mt-0.5 text-xs text-[#879568]">
                       Foxtail Millet · Roasted Chickpeas · Tahini
                     </p>
-                    <div className="flex items-center justify-between mt-2">
+
+                    <div className="mt-2 flex items-center justify-between">
                       <span className="text-sm font-semibold text-[#183D2B]">
-                        $14.50
+                        ₹{(cartCount * 14.5).toFixed(2)}
                       </span>
-                      <div className="flex items-center border border-[#EDE2CF] rounded-full px-2 py-0.5 text-xs bg-[#F7F1E5]">
+
+                      <div className="flex items-center rounded-full border border-[#EDE2CF] bg-[#F7F1E5] px-2 py-0.5 text-xs">
                         <button
                           type="button"
-                          onClick={() => setCartCount(Math.max(0, cartCount - 1))}
-                          className="px-1 text-[#183D2B] font-bold"
+                          onClick={() =>
+                            setCartCount(Math.max(0, cartCount - 1))
+                          }
+                          className="px-1 font-bold text-[#183D2B]"
+                          aria-label="Remove one item"
                         >
-                          -
+                          −
                         </button>
+
                         <span className="px-2 font-medium">{cartCount}</span>
+
                         <button
                           type="button"
                           onClick={() => setCartCount(cartCount + 1)}
-                          className="px-1 text-[#183D2B] font-bold"
+                          className="px-1 font-bold text-[#183D2B]"
+                          aria-label="Add one item"
                         >
                           +
                         </button>
@@ -380,44 +481,58 @@ export default function Navbar() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <p className="text-sm text-[#879568]">Your bag is currently empty.</p>
-                  <a
-                    href="#milletbowl"
+                <div className="py-12 text-center">
+                  <ShoppingBag className="mx-auto h-10 w-10 text-[#879568]/60" />
+
+                  <p className="mt-3 text-sm text-[#879568]">
+                    Your bag is currently empty.
+                  </p>
+
+                  <Link
+                    href="/products"
                     onClick={() => setCartOpen(false)}
-                    className="inline-block mt-3 text-sm text-[#C66A45] font-semibold hover:underline"
+                    className="mt-3 inline-block text-sm font-semibold text-[#C66A45] hover:underline"
                   >
-                    Add a MilletBowl →
-                  </a>
+                    Explore our products →
+                  </Link>
                 </div>
               )}
 
-              {/* Free delivery perk */}
-              <div className="bg-[#EDE2CF]/60 rounded-xl p-3 flex items-center gap-2.5 text-xs text-[#183D2B]">
-                <CheckCircle2 className="w-4 h-4 text-[#879568] flex-shrink-0" />
-                <span>Complimentary eco-friendly wooden spoon & napkin included.</span>
-              </div>
+              {/* CART PERK */}
+              {cartCount > 0 && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-[#EDE2CF]/60 p-3 text-xs text-[#183D2B]">
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#879568]" />
+
+                  <span>
+                    Complimentary eco-friendly wooden spoon and napkin
+                    included.
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Cart Footer */}
-            <div className="border-t border-[#EDE2CF] pt-4 space-y-3">
-              <div className="flex justify-between text-sm font-medium text-[#252820]">
-                <span>Subtotal</span>
-                <span>${(cartCount * 14.5).toFixed(2)}</span>
+            {/* CART FOOTER */}
+            {cartCount > 0 && (
+              <div className="space-y-3 border-t border-[#EDE2CF] pt-4">
+                <div className="flex justify-between text-sm font-medium text-[#252820]">
+                  <span>Subtotal</span>
+                  <span>₹{(cartCount * 14.5).toFixed(2)}</span>
+                </div>
+
+                <p className="text-xs text-[#879568]">
+                  Taxes and delivery details will be confirmed when ordering.
+                </p>
+
+                <Link
+                  href="/#order"
+                  onClick={() => setCartOpen(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#C66A45] px-5 py-3 text-sm font-semibold text-[#F7F1E5] shadow-md transition-all duration-200 hover:bg-[#B55A37]"
+                >
+                  <span>Continue to Ordering</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
-              <div className="flex justify-between text-xs text-[#879568]">
-                <span>Taxes & Shipping calculated at checkout</span>
-                <span className="text-[#879568]">Farm Fresh</span>
-              </div>
-              <a
-                href="#order"
-                onClick={() => setCartOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-5 text-sm font-semibold text-[#F7F1E5] bg-[#C66A45] hover:bg-[#B55A37] rounded-full shadow-md transition-all duration-200"
-              >
-                <span>Proceed to Checkout</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -425,6 +540,7 @@ export default function Navbar() {
   );
 }
 
+// Chevron icon for navigation links
 function ChevronRightIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -434,7 +550,11 @@ function ChevronRightIcon(props: React.SVGProps<SVGSVGElement>) {
       stroke="currentColor"
       {...props}
     >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m8.25 4.5 7.5 7.5-7.5 7.5"
+      />
     </svg>
   );
 }
