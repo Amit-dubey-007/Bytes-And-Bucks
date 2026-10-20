@@ -1,0 +1,29 @@
+<svg width="800" height="1000" viewBox="0 0 800 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="1000" fill="#EDE2CF"/>
+  <rect x="20" y="20" width="760" height="960" rx="24" stroke="#183D2B" stroke-width="2" stroke-dasharray="8 8" opacity="0.3"/>
+  
+  <!-- Subtle background botanical watermark -->
+  <circle cx="400" cy="400" r="180" fill="#F7F1E5" opacity="0.7"/>
+  
+  <!-- Founder Profile Avatar Outline -->
+  <g transform="translate(300, 280)" stroke="#183D2B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <circle cx="100" cy="70" r="50"/>
+    <path d="M20 220 C20 160 55 140 100 140 C145 140 180 160 180 220" />
+  </g>
+  
+  <!-- Text Label -->
+  <text x="400" y="580" text-anchor="middle" fill="#183D2B" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="bold">
+    Founder Photograph Placeholder
+  </text>
+  <text x="400" y="620" text-anchor="middle" fill="#879568" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="medium">
+    Recommended: 800 x 1000 px portrait
+  </text>
+  <text x="400" y="650" text-anchor="middle" fill="#C66A45" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="semibold">
+    Drop real photo into public/placeholders/founder-1.jpg
+  </text>
+  
+  <rect x="250" y="690" width="300" height="40" rx="20" fill="#183D2B" fill-opacity="0.08"/>
+  <text x="400" y="715" text-anchor="middle" fill="#183D2B" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="bold">
+    MilletMarg Leadership
+  </text>
+</svg>

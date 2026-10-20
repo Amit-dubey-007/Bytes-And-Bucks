@@ -1,0 +1,31 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#EFE8DC"/>
+  <rect x="20" y="20" width="760" height="560" rx="20" stroke="#183D2B" stroke-width="2" stroke-dasharray="6 6" opacity="0.3"/>
+  <circle cx="400" cy="240" r="140" fill="#F7F1E5" opacity="0.8"/>
+  
+  <!-- Architectural Facade Icon -->
+  <g transform="translate(350, 180)" stroke="#183D2B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M10 50 L50 15 L90 50"/>
+    <rect x="20" y="50" width="60" height="55" rx="3"/>
+    <rect x="38" y="70" width="24" height="35" rx="2"/>
+    <circle cx="30" cy="65" r="4" fill="#C66A45"/>
+    <circle cx="70" cy="65" r="4" fill="#879568"/>
+    <line x1="5" y1="105" x2="95" y2="105"/>
+  </g>
+
+  <!-- Labels -->
+  <text x="400" y="340" text-anchor="middle" fill="#183D2B" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="bold">
+    Storefront &amp; Café Exterior
+  </text>
+  <text x="400" y="375" text-anchor="middle" fill="#879568" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="medium">
+    Recommended: 1200 x 900 px (4:3)
+  </text>
+  <text x="400" y="405" text-anchor="middle" fill="#C66A45" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="semibold">
+    Drop real photo into public/placeholders/cafe-exterior.jpg
+  </text>
+  
+  <rect x="280" y="440" width="240" height="34" rx="17" fill="#183D2B" fill-opacity="0.08"/>
+  <text x="400" y="462" text-anchor="middle" fill="#183D2B" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold">
+    MilletMarg Welcoming Entrance
+  </text>
+</svg>
