@@ -721,7 +721,14 @@ function CheckoutContent() {
                   <div className="flex justify-between text-stone-600">
                     <span>Delivery Fee</span>
                     {quote?.is_free_delivery ? (
-                      <span className="font-bold text-emerald-600">FREE (₹0.00)</span>
+                      <span className="font-bold text-emerald-600">
+                        FREE (₹0.00)
+                        {quote?.base_delivery_fee && (
+                          <span className="text-stone-400 font-normal line-through ml-1.5">
+                            ₹{Number(quote.base_delivery_fee).toFixed(2)}
+                          </span>
+                        )}
+                      </span>
                     ) : (
                       <span>₹{deliveryFeeNumber.toFixed(2)}</span>
                     )}

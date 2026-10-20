@@ -572,7 +572,16 @@ function OwnerOrderDetailContent() {
                     </div>
                     <div className="flex justify-between text-stone-600">
                       <span>Delivery Fee</span>
-                      <span>₹{order.delivery_fee}</span>
+                      {order.is_free_delivery ? (
+                        <span className="font-semibold text-emerald-600">
+                          FREE (₹0.00)
+                          <span className="text-stone-400 font-normal line-through ml-1.5">
+                            ₹{order.delivery_fee}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-stone-800">₹{order.delivery_fee_charged}</span>
+                      )}
                     </div>
                     <div className="flex justify-between items-center text-sm font-extrabold text-[#183D2B] border-t border-stone-100 pt-2">
                       <span>Total Amount</span>

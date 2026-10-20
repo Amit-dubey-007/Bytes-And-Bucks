@@ -1043,7 +1043,16 @@ function OwnerDashboardContent() {
                         <div>
                           Delivery Fee:{" "}
                           <span className="font-semibold">
-                            {selectedOrder.is_free_delivery ? "FREE (₹0.00)" : `₹${selectedOrder.delivery_fee_charged}`}
+                            {selectedOrder.is_free_delivery ? (
+                              <span className="text-emerald-700">
+                                FREE (₹0.00)
+                                <span className="text-stone-400 font-normal line-through ml-1.5">
+                                  ₹{selectedOrder.delivery_fee}
+                                </span>
+                              </span>
+                            ) : (
+                              `₹${selectedOrder.delivery_fee_charged}`
+                            )}
                           </span>
                         </div>
                         <div className="text-sm font-extrabold text-[#183D2B] pt-1 border-t border-stone-100">

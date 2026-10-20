@@ -777,9 +777,14 @@ function OrderDetailsContent() {
                     Delivery Charge ({order.road_distance_km} km &middot; {order.billable_distance_km} billable km)
                   </span>
                   {order.is_free_delivery ? (
-                    <span className="font-bold text-emerald-600">FREE (₹0.00)</span>
+                    <span className="font-bold text-emerald-600">
+                      FREE (₹0.00)
+                      <span className="text-stone-400 font-normal line-through ml-1.5">
+                        ₹{order.delivery_fee}
+                      </span>
+                    </span>
                   ) : (
-                    <span>₹{order.delivery_fee_charged}</span>
+                    <span className="font-semibold text-stone-800">₹{order.delivery_fee_charged}</span>
                   )}
                 </div>
 
