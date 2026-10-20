@@ -877,8 +877,18 @@ class OwnerOrderApproveView(APIView):
 
         with transaction.atomic():
             order.status = Order.STATUS_APPROVED
+            order.payment_status = Order.PAYMENT_VERIFIED
+            order.payment_verified_at = timezone.now()
+            order.payment_verified_by = request.user
             order.payment_instructions = instructions
-            update_fields = ['status', 'payment_instructions', 'updated_at']
+            update_fields = [
+                'status',
+                'payment_status',
+                'payment_verified_at',
+                'payment_verified_by',
+                'payment_instructions',
+                'updated_at'
+            ]
             if internal_note:
                 order.internal_note = internal_note
                 update_fields.append('internal_note')
@@ -897,8 +907,8 @@ class OwnerOrderApproveView(APIView):
             create_notification(
                 order.user,
                 Notification.TYPE_ORDER_APPROVED,
-                f"Order {order.reference} Approved!",
-                "Your order has been approved by MilletMarg! Please check payment instructions.",
+                f"Order {order.reference} Approved & Payment Confirmed!",
+                "Your payment and order have been confirmed by MilletMarg! Kitchen is preparing your fresh millet order.",
                 order=order
             )
 

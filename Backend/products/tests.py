@@ -304,16 +304,16 @@ class ProductAPITests(APITestCase):
         self.assertIn(self.p3.slug, slugs)
 
     def test_public_write_operations_disallowed(self):
-        # POST to list endpoint
+        # Unauthenticated POST to list endpoint
         post_res = self.client.post(self.list_url, {
             'name': 'Hacker Product',
             'price': '10.00',
             'category': 'Snacks',
             'weight_grams': 100
         })
-        self.assertEqual(post_res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(post_res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # PUT to detail endpoint
+        # Unauthenticated PUT to detail endpoint
         detail_url = reverse('product-detail', kwargs={'slug': self.p1.slug})
         put_res = self.client.put(detail_url, {
             'name': 'Hacked Name',
@@ -321,11 +321,62 @@ class ProductAPITests(APITestCase):
             'category': 'Snacks',
             'weight_grams': 100
         })
-        self.assertEqual(put_res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(put_res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # DELETE to detail endpoint
+        # Unauthenticated DELETE to detail endpoint
         del_res = self.client.delete(detail_url)
-        self.assertEqual(del_res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(del_res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_owner_product_crud_operations(self):
+        from django.contrib.auth.models import User
+        from rest_framework.authtoken.models import Token
+        from accounts.models import UserProfile
+
+        # Setup owner and customer
+        owner_user = User.objects.create_user("store_owner", "owner@mm.com", "pass123")
+        UserProfile.objects.create(user=owner_user, role="owner")
+        owner_token = Token.objects.create(user=owner_user)
+
+        cust_user = User.objects.create_user("cust_user", "cust@mm.com", "pass123")
+        UserProfile.objects.create(user=cust_user, role="customer")
+        cust_token = Token.objects.create(user=cust_user)
+
+        # Customer is forbidden from write
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {cust_token.key}")
+        cust_res = self.client.post(self.list_url, {
+            'name': 'Unauthorized Bowl',
+            'price': '150.00',
+            'weight_grams': 200
+        })
+        self.assertEqual(cust_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Owner can create product without category (defaults to 'Bowls')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {owner_token.key}")
+        create_res = self.client.post(self.list_url, {
+            'name': 'Special Millet Harvest Bowl',
+            'price': '220.00',
+            'weight_grams': 300,
+            'description': 'Delicious new bowl added by owner'
+        })
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
+        created_data = create_res.json()
+        self.assertEqual(created_data['category'], 'Bowls')
+        created_slug = created_data['slug']
+
+        # Owner can update product
+        detail_url = reverse('product-detail', kwargs={'slug': created_slug})
+        update_res = self.client.patch(detail_url, {
+            'price': '240.00',
+            'stock_quantity': 50
+        })
+        self.assertEqual(update_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_res.json()['price'], '240.00')
+
+        # Owner can delete product
+        del_res = self.client.delete(detail_url)
+        self.assertEqual(del_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Product.objects.filter(slug=created_slug).exists())
+
 
     def test_categories_endpoint(self):
         url = reverse('product-categories')

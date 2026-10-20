@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
@@ -20,19 +20,28 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  ArrowRight,
 } from "lucide-react";
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("search") || "";
 
   const [products, setProducts] = useState<ProductData[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(urlQuery);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (urlQuery) {
+      setSearchQuery(urlQuery);
+    }
+  }, [urlQuery]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -84,7 +93,7 @@ export default function ProductsPage() {
 
     try {
       await addToCart(product.id, 1);
-      setMessage(`Added "${product.name}" to your order list!`);
+      setMessage(`Added "${product.name}" to your cart!`);
       setTimeout(() => setMessage(null), 3500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to add to cart";
@@ -124,7 +133,7 @@ export default function ProductsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-stone-300 text-stone-800 text-xs font-semibold hover:border-[#183D2B] transition shadow-sm"
           >
             <ShoppingBag className="w-4 h-4 text-[#C07F00]" />
-            <span>View Order List</span>
+            <span>View My Cart</span>
           </Link>
         </div>
 
@@ -210,8 +219,11 @@ export default function ProductsPage() {
                 className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group"
               >
                 <div>
-                  {/* Image Container */}
-                  <div className="relative w-full h-48 bg-stone-100 flex items-center justify-center overflow-hidden">
+                  {/* Image Container - Clickable to detail page */}
+                  <Link
+                    href={`/products/${product.slug}`}
+                    className="relative block w-full h-48 bg-stone-100 overflow-hidden cursor-pointer"
+                  >
                     {product.image ? (
                       <Image
                         src={product.image}
@@ -221,7 +233,9 @@ export default function ProductsPage() {
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <Package className="w-12 h-12 text-stone-300" />
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-12 h-12 text-stone-300" />
+                      </div>
                     )}
 
                     {product.is_vegetarian && (
@@ -233,19 +247,31 @@ export default function ProductsPage() {
                     <span className="absolute top-3 right-3 bg-stone-900/70 text-white backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-medium">
                       {product.weight_grams}g
                     </span>
-                  </div>
+                  </Link>
 
                   {/* Body Content */}
                   <div className="p-4 sm:p-5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#C07F00]">
                       {product.category}
                     </span>
-                    <h3 className="font-bold text-base text-stone-900 mt-0.5 leading-snug">
-                      {product.name}
-                    </h3>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="block group-hover:text-[#C07F00] transition-colors"
+                    >
+                      <h3 className="font-bold text-base text-stone-900 mt-0.5 leading-snug">
+                        {product.name}
+                      </h3>
+                    </Link>
                     <p className="text-xs text-stone-500 line-clamp-2 mt-1 leading-relaxed">
                       {product.description || "Authentic healthy millet preparation crafted with care."}
                     </p>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#183D2B] hover:text-[#C07F00] mt-2"
+                    >
+                      <span>View Details</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 </div>
 
@@ -298,5 +324,20 @@ export default function ProductsPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex flex-col min-h-screen bg-[#F7F1E5] items-center justify-center py-20 text-stone-500">
+          <Loader2 className="w-8 h-8 animate-spin text-[#C07F00] mb-3" />
+          <p className="text-sm">Loading products catalog...</p>
+        </div>
+      }
+    >
+      <ProductsPageContent />
+    </React.Suspense>
   );
 }

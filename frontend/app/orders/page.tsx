@@ -67,10 +67,10 @@ export default function OrderHistoryPage() {
   };
 
   const paymentBadges: Record<string, { label: string; color: string }> = {
-    unpaid: { label: "Payment Required", color: "bg-amber-50 text-amber-800 border-amber-200" },
-    submitted: { label: "Proof Submitted", color: "bg-blue-50 text-blue-800 border-blue-200" },
+    unpaid: { label: "Payment Pending", color: "bg-amber-50 text-amber-800 border-amber-200" },
+    submitted: { label: "Payment Notified", color: "bg-blue-50 text-blue-800 border-blue-200" },
     verified: { label: "Paid & Verified", color: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-    rejected: { label: "Proof Rejected", color: "bg-red-50 text-red-800 border-red-200" },
+    rejected: { label: "Payment Issue", color: "bg-red-50 text-red-800 border-red-200" },
   };
 
   return (

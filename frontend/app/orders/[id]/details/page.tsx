@@ -185,22 +185,22 @@ function OrderDetailsContent() {
     unpaid: {
       label: "Payment Pending",
       color: "bg-amber-50 text-amber-800 border-amber-200",
-      desc: "Awaiting your payment and receipt upload.",
+      desc: "Awaiting your payment to the store. The owner will verify your payment via WhatsApp.",
     },
     submitted: {
-      label: "Proof Submitted",
+      label: "Payment Notified",
       color: "bg-blue-50 text-blue-800 border-blue-200",
-      desc: "Receipt uploaded. Store verification in progress.",
+      desc: "Payment notification sent. Store owner is verifying and approving your order.",
     },
     verified: {
       label: "Payment Verified",
       color: "bg-emerald-50 text-emerald-800 border-emerald-200",
-      desc: "Payment verified! Kitchen is preparing your order.",
+      desc: "Payment verified by store! Kitchen is preparing your fresh millet order.",
     },
     rejected: {
-      label: "Proof Rejected",
+      label: "Payment Issue",
       color: "bg-red-50 text-red-800 border-red-200",
-      desc: "Payment proof could not be verified. Please re-upload.",
+      desc: "Payment issue reported by store owner. Please reach out via WhatsApp.",
     },
   };
 
@@ -828,23 +828,33 @@ function OrderDetailsContent() {
               </div>
             </div>
 
-            {/* Cancel Action for Pending Orders */}
+            {/* Cancel Action & Policy for Pending Orders */}
             {order.status === "pending" && (
-              <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-stone-900">Need to cancel?</h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    You can cancel your order while it is still awaiting store approval.
-                  </p>
+              <div className="bg-amber-50/90 p-6 rounded-2xl border border-amber-200 shadow-sm space-y-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-amber-950">
+                      Cancellation Policy & Important Notice
+                    </h3>
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      You can cancel your order now while it is awaiting store approval. <strong>Please note:</strong> The store owner will only approve your order after your payment is completed and verified outside the website (via UPI/WhatsApp). Once the owner approves your order, kitchen preparation begins immediately and your payment cannot be returned or refunded.
+                    </p>
+                  </div>
                 </div>
 
-                <button
-                  onClick={handleCancelOrder}
-                  disabled={cancelling}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50"
-                >
-                  {cancelling ? "Cancelling..." : "Cancel Order"}
-                </button>
+                <div className="pt-3 border-t border-amber-200/70 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-900">
+                    Need to cancel before store approval?
+                  </span>
+                  <button
+                    onClick={handleCancelOrder}
+                    disabled={cancelling}
+                    className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600 text-white hover:bg-red-700 transition shadow-sm disabled:opacity-50"
+                  >
+                    {cancelling ? "Cancelling..." : "Cancel Order Now"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

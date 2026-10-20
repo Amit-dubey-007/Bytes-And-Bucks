@@ -11,10 +11,10 @@ export function getAuthToken(): string | null {
   try {
     const local = localStorage.getItem(TOKEN_KEY);
     if (local) return local;
-  } catch {}
+  } catch { }
   try {
     return sessionStorage.getItem(TOKEN_KEY);
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -22,20 +22,20 @@ export function setAuthToken(token: string): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(TOKEN_KEY, token);
-  } catch {}
+  } catch { }
   try {
     sessionStorage.setItem(TOKEN_KEY, token);
-  } catch {}
+  } catch { }
 }
 
 export function clearAuthToken(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(TOKEN_KEY);
-  } catch {}
+  } catch { }
   try {
     sessionStorage.removeItem(TOKEN_KEY);
-  } catch {}
+  } catch { }
 }
 
 export interface ApiErrorResponse {
@@ -60,12 +60,16 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getAuthToken();
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   };
+  if (isFormData) {
+    delete headers["Content-Type"];
+  }
 
+  const token = getAuthToken();
   if (token) {
     headers["Authorization"] = `Token ${token}`;
   }
@@ -206,6 +210,32 @@ export async function getProducts(params?: {
 
 export async function getProductBySlug(slug: string): Promise<ProductData> {
   return apiRequest<ProductData>(`/items/${slug}/`);
+}
+
+export async function createProduct(formData: FormData): Promise<ProductData> {
+  return apiRequest<ProductData>("/items/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function updateProduct(slug: string, formData: FormData): Promise<ProductData> {
+  return apiRequest<ProductData>(`/items/${slug}/`, {
+    method: "PATCH",
+    body: formData,
+  });
+}
+
+export async function deleteProduct(slug: string): Promise<void> {
+  return apiRequest<void>(`/items/${slug}/`, {
+    method: "DELETE",
+  });
+}
+
+export async function markAllOutOfStock(): Promise<{ detail: string }> {
+  return apiRequest<{ detail: string }>("/items/mark-all-out-of-stock/", {
+    method: "POST",
+  });
 }
 
 // ----------------- Addresses -----------------
@@ -392,14 +422,14 @@ export interface OrderData {
   public_id: string;
   reference: string;
   status:
-    | "pending"
-    | "approved"
-    | "preparing"
-    | "ready_for_dispatch"
-    | "out_for_delivery"
-    | "delivered"
-    | "rejected"
-    | "cancelled";
+  | "pending"
+  | "approved"
+  | "preparing"
+  | "ready_for_dispatch"
+  | "out_for_delivery"
+  | "delivered"
+  | "rejected"
+  | "cancelled";
   payment_status: "unpaid" | "submitted" | "verified" | "rejected";
   subtotal: string;
   road_distance_km: string;
@@ -459,14 +489,14 @@ export interface OwnerOrderListItem {
   public_id: string;
   reference: string;
   status:
-    | "pending"
-    | "approved"
-    | "preparing"
-    | "ready_for_dispatch"
-    | "out_for_delivery"
-    | "delivered"
-    | "rejected"
-    | "cancelled";
+  | "pending"
+  | "approved"
+  | "preparing"
+  | "ready_for_dispatch"
+  | "out_for_delivery"
+  | "delivered"
+  | "rejected"
+  | "cancelled";
   payment_status: "unpaid" | "submitted" | "verified" | "rejected";
   recipient_name: string;
   phone_number: string;

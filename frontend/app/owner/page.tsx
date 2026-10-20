@@ -20,6 +20,12 @@ import {
   dispatchOrder,
   getOwnerReviews,
   moderateReview,
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  markAllOutOfStock,
+  ProductData,
   ReviewData,
   UserProfileData,
   OwnerDashboardSummary,
@@ -59,6 +65,10 @@ import {
   Star,
   EyeOff,
   Navigation,
+  Plus,
+  Pencil,
+  Trash2,
+  Upload,
 } from "lucide-react";
 
 function OwnerDashboardContent() {
@@ -70,8 +80,8 @@ function OwnerDashboardContent() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
 
-  // Top level active tab: "orders" | "reviews"
-  const [activeTab, setActiveTab] = useState<"orders" | "reviews">("orders");
+  // Top level active tab: "orders" | "products" | "reviews"
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "reviews">("orders");
 
   // Dashboard Data State
   const [summary, setSummary] = useState<OwnerDashboardSummary | null>(null);
@@ -82,6 +92,30 @@ function OwnerDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Products Tab State
+  const [productsList, setProductsList] = useState<ProductData[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductData | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<ProductData | null>(null);
+  const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [productFormError, setProductFormError] = useState<string | null>(null);
+
+  // Product Form Fields
+  const [pName, setPName] = useState("");
+  const [pPrice, setPPrice] = useState("");
+  const [pCategory, setPCategory] = useState("");
+  const [pWeightGrams, setPWeightGrams] = useState("250");
+  const [pDescription, setPDescription] = useState("");
+  const [pIngredients, setPIngredients] = useState("");
+  const [pIsVegetarian, setPIsVegetarian] = useState(true);
+  const [pInStock, setPInStock] = useState(true);
+  const [markingAllOutOfStock, setMarkingAllOutOfStock] = useState(false);
+  const [confirmMarkAllOut, setConfirmMarkAllOut] = useState(false);
+  const [pIsAvailable, setPIsAvailable] = useState(true);
+  const [pImageFile, setPImageFile] = useState<File | null>(null);
 
   // Reviews Tab State
   const [reviews, setReviews] = useState<ReviewData[]>([]);
@@ -207,6 +241,140 @@ function OwnerDashboardContent() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to moderate review";
       setError(msg);
+    }
+  };
+
+  // Product Management Handlers
+  const loadProducts = useCallback(async () => {
+    setLoadingProducts(true);
+    try {
+      const res = await getProducts({ search: productSearchQuery || undefined });
+      setProductsList(res.results || []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load products";
+      setError(msg);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [productSearchQuery]);
+
+  useEffect(() => {
+    if (isOwner && activeTab === "products") {
+      loadProducts();
+    }
+  }, [isOwner, activeTab, loadProducts]);
+
+  const handleOpenAddProduct = () => {
+    setEditingProduct(null);
+    setPName("");
+    setPPrice("");
+    setPCategory("");
+    setPWeightGrams("250");
+    setPDescription("");
+    setPIngredients("");
+    setPIsVegetarian(true);
+    setPInStock(true);
+    setPIsAvailable(true);
+    setPImageFile(null);
+    setProductFormError(null);
+    setProductModalOpen(true);
+  };
+
+  const handleOpenEditProduct = (prod: ProductData) => {
+    setEditingProduct(prod);
+    setPName(prod.name);
+    setPPrice(String(prod.price));
+    setPCategory(prod.category || "");
+    setPWeightGrams(String(prod.weight_grams || 250));
+    setPDescription(prod.description || "");
+    setPIngredients(prod.ingredients || "");
+    setPIsVegetarian(prod.is_vegetarian ?? true);
+    setPInStock(prod.is_available ?? true);
+    setPIsAvailable(prod.is_available ?? true);
+    setPImageFile(null);
+    setProductFormError(null);
+    setProductModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pName.trim()) {
+      setProductFormError("Product name is required.");
+      return;
+    }
+    if (!pPrice.trim() || isNaN(Number(pPrice)) || Number(pPrice) < 0) {
+      setProductFormError("Please enter a valid non-negative price.");
+      return;
+    }
+
+    setSubmittingProduct(true);
+    setProductFormError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("name", pName.trim());
+      formData.append("price", Number(pPrice).toFixed(2));
+      formData.append("category", pCategory.trim() || "Bowls");
+      formData.append("weight_grams", String(parseInt(pWeightGrams) || 250));
+      formData.append("description", pDescription.trim());
+      formData.append("ingredients", pIngredients.trim());
+      formData.append("is_vegetarian", String(pIsVegetarian));
+      // stock_quantity=0 means unlimited (never decremented); is_available is the real in/out stock flag
+      formData.append("stock_quantity", "0");
+      formData.append("is_available", String(pInStock));
+      if (pImageFile) {
+        formData.append("image", pImageFile);
+      }
+
+      if (editingProduct) {
+        await updateProduct(editingProduct.slug, formData);
+        setSuccessMessage(`Product "${pName}" updated successfully.`);
+      } else {
+        await createProduct(formData);
+        setSuccessMessage(`Product "${pName}" created successfully.`);
+      }
+
+      setProductModalOpen(false);
+      loadProducts();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save product";
+      setProductFormError(msg);
+    } finally {
+      setSubmittingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    setSubmittingProduct(true);
+    try {
+      await deleteProduct(deletingProduct.slug);
+      setSuccessMessage(`Product "${deletingProduct.name}" deleted successfully.`);
+      setDeletingProduct(null);
+      loadProducts();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete product";
+      setError(msg);
+    } finally {
+      setSubmittingProduct(false);
+    }
+  };
+
+  const handleMarkAllOutOfStock = async () => {
+    setMarkingAllOutOfStock(true);
+    setConfirmMarkAllOut(false);
+    try {
+      const res = await markAllOutOfStock();
+      setSuccessMessage(res.detail || "All products marked out of stock for today.");
+      loadProducts();
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to mark all out of stock";
+      setError(msg);
+    } finally {
+      setMarkingAllOutOfStock(false);
     }
   };
 
@@ -474,6 +642,17 @@ function OwnerDashboardContent() {
             }`}
           >
             Orders & Delivery Operations
+          </button>
+          <button
+            onClick={() => setActiveTab("products")}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === "products"
+                ? "border-[#183D2B] text-[#183D2B]"
+                : "border-transparent text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-[#C07F00]" />
+            Products & Menu {productsList.length > 0 ? `(${productsList.length})` : ""}
           </button>
           <button
             onClick={() => setActiveTab("reviews")}
@@ -781,6 +960,179 @@ function OwnerDashboardContent() {
           )}
         </div>
       </>
+    )}
+
+    {/* Products & Menu Tab */}
+    {activeTab === "products" && (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-bold text-[#183D2B] flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#C07F00]" />
+              Products &amp; Menu Management
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Add, edit, or remove menu items. Changes reflect immediately on the store.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setConfirmMarkAllOut(true)}
+              disabled={markingAllOutOfStock}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 hover:bg-red-100 transition shadow-sm"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              Mark All Out of Stock Today
+            </button>
+            <button
+              onClick={loadProducts}
+              disabled={loadingProducts}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-700 hover:bg-stone-50 transition shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingProducts ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+            <button
+              onClick={handleOpenAddProduct}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#183D2B] text-white text-xs font-bold hover:bg-[#122e20] transition shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add New Product
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search products by name, category, ingredients..."
+            value={productSearchQuery}
+            onChange={(e) => setProductSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] shadow-sm"
+          />
+        </div>
+
+        {/* Products List */}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          {loadingProducts ? (
+            <div className="py-20 text-center text-stone-500">
+              <Loader2 className="w-8 h-8 animate-spin text-[#C07F00] mx-auto mb-2" />
+              <p className="text-xs">Loading products...</p>
+            </div>
+          ) : productsList.length === 0 ? (
+            <div className="py-16 text-center text-stone-500 space-y-3">
+              <Package className="w-12 h-12 text-stone-300 mx-auto" />
+              <p className="text-sm font-semibold text-stone-800">No products found</p>
+              <p className="text-xs text-stone-400">
+                {productSearchQuery ? "Try a different search term." : "Click \"Add New Product\" to create your first menu item."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-stone-700">
+                <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider text-[11px] font-bold">
+                  <tr>
+                    <th className="py-3.5 px-4">Product</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Price</th>
+                    <th className="py-3.5 px-4">Weight</th>
+                    <th className="py-3.5 px-4">Stock Status</th>
+                    <th className="py-3.5 px-4">Visibility</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {productsList.map((prod) => (
+                    <tr key={prod.id} className="hover:bg-stone-50/60 transition">
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          {prod.image ? (
+                            <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-stone-200 bg-stone-100">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={prod.image}
+                                alt={prod.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
+                              <Package className="w-4 h-4 text-stone-400" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold text-stone-900 leading-tight">{prod.name}</div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span
+                                className={`inline-block w-2.5 h-2.5 rounded-full border ${
+                                  prod.is_vegetarian ? "bg-emerald-500 border-emerald-700" : "bg-red-500 border-red-700"
+                                }`}
+                              />
+                              <span className="text-[10px] text-stone-500">
+                                {prod.is_vegetarian ? "Veg" : "Non-veg"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                          {prod.category || "Uncategorised"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-extrabold text-[#183D2B]">₹{prod.price}</td>
+                      <td className="py-3.5 px-4 text-stone-500">{prod.weight_grams}g</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                            prod.is_available
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-red-50 text-red-700 border-red-200"
+                          }`}
+                        >
+                          {prod.is_available ? "In Stock" : "Out of Stock"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                            prod.is_available
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-stone-100 text-stone-600 border-stone-200"
+                          }`}
+                        >
+                          {prod.is_available ? "Available" : "Hidden"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenEditProduct(prod)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#183D2B] text-white text-[11px] font-bold hover:bg-[#122e20] transition shadow-sm"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeletingProduct(prod)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-[11px] font-bold hover:bg-red-700 transition shadow-sm"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     )}
 
     {/* Customer Reviews Tab */}
@@ -1543,7 +1895,194 @@ function OwnerDashboardContent() {
             </div>
           </div>
         )}
+        {/* Product Add/Edit Modal */}
+        {productModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden my-auto">
+              <div className="p-5 border-b border-stone-200 flex items-center justify-between bg-stone-50">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#C07F00]">
+                    {editingProduct ? "Edit Product" : "Add New Product"}
+                  </span>
+                  <h3 className="text-lg font-extrabold text-[#183D2B]">
+                    {editingProduct ? editingProduct.name : "Create Menu Item"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setProductModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 flex items-center justify-center text-stone-600 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <form id="productForm" onSubmit={handleSaveProduct} className="space-y-5 text-xs">
+                  {productFormError && (
+                    <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span className="font-semibold">{productFormError}</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-stone-800 mb-1.5">Product Name <span className="text-red-500">*</span></label>
+                      <input type="text" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="e.g. Jowar Veggie Bowl" required className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-800 mb-1.5">Price (₹) <span className="text-red-500">*</span></label>
+                      <input type="number" min="0" step="0.01" value={pPrice} onChange={(e) => setPPrice(e.target.value)} placeholder="e.g. 199" required className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-stone-800 mb-1.5">Category <span className="text-stone-400 font-normal">(optional)</span></label>
+                      <input type="text" value={pCategory} onChange={(e) => setPCategory(e.target.value)} placeholder="Bowls, Snacks, Drinks..." className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-800 mb-1.5">Weight (grams)</label>
+                      <input type="number" min="1" value={pWeightGrams} onChange={(e) => setPWeightGrams(e.target.value)} placeholder="250" className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-stone-800 mb-1.5">Description</label>
+                    <textarea rows={3} value={pDescription} onChange={(e) => setPDescription(e.target.value)} placeholder="Short description shown to customers..." className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs resize-none" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-stone-800 mb-1.5">Ingredients</label>
+                    <textarea rows={2} value={pIngredients} onChange={(e) => setPIngredients(e.target.value)} placeholder="Jowar flour, vegetables, spices..." className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#183D2B] text-xs resize-none" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col justify-end">
+                      <label className="block font-bold text-stone-800 mb-2">In Stock</label>
+                      <button
+                        type="button"
+                        onClick={() => setPInStock(!pInStock)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition ${
+                          pInStock
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                            : "bg-red-50 border-red-300 text-red-800"
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full ${pInStock ? "bg-emerald-500" : "bg-red-500"}`} />
+                        {pInStock ? "Yes — In Stock" : "No — Out of Stock"}
+                      </button>
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <label className="block font-bold text-stone-800 mb-2">Vegetarian</label>
+                      <button type="button" onClick={() => setPIsVegetarian(!pIsVegetarian)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition ${pIsVegetarian ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-red-50 border-red-300 text-red-800"}`}>
+                        <span className={`w-3 h-3 rounded-full border-2 ${pIsVegetarian ? "bg-emerald-500 border-emerald-700" : "bg-red-500 border-red-700"}`} />
+                        {pIsVegetarian ? "Vegetarian" : "Non-Veg"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-stone-800 mb-1.5">
+                      Product Image {editingProduct && <span className="text-stone-400 font-normal">(leave blank to keep existing)</span>}
+                    </label>
+                    <label htmlFor="productImageInput" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer bg-stone-50 hover:bg-stone-100 transition">
+                      {pImageFile ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                          <span className="text-xs font-semibold text-emerald-800">{pImageFile.name}</span>
+                          <span className="text-[10px] text-stone-400">{(pImageFile.size / 1024).toFixed(0)} KB — click to change</span>
+                        </div>
+                      ) : editingProduct?.image ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={editingProduct.image} alt="current" className="w-12 h-12 object-cover rounded-lg" />
+                          <span className="text-[10px] text-stone-500">Current image — click to replace</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-stone-400">
+                          <Upload className="w-7 h-7" />
+                          <span className="text-xs font-semibold">Click to upload image</span>
+                          <span className="text-[10px]">JPG, PNG, WebP — max 5 MB</span>
+                        </div>
+                      )}
+                      <input id="productImageInput" type="file" accept="image/*" className="hidden" onChange={(e) => setPImageFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
+                <button type="button" onClick={() => setProductModalOpen(false)} className="px-5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold hover:bg-stone-100 transition">Cancel</button>
+                <button type="submit" form="productForm" disabled={submittingProduct} className="px-6 py-2.5 rounded-xl bg-[#183D2B] text-white text-xs font-bold hover:bg-[#122e20] transition shadow-sm inline-flex items-center gap-2 disabled:opacity-60">
+                  {submittingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : editingProduct ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {submittingProduct ? "Saving..." : editingProduct ? "Update Product" : "Create Product"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mark All Out of Stock Confirm Modal */}
+        {confirmMarkAllOut && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-6 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+                  <XCircle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <h3 className="text-lg font-extrabold text-stone-900">Mark All Out of Stock?</h3>
+                  <p className="text-sm text-stone-600">
+                    This will mark <strong className="text-stone-900">every product</strong> as out of stock immediately.
+                    Customers will not be able to order anything until you re-enable items individually.
+                  </p>
+                  <p className="text-xs text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                    Tip: Go to each product and toggle &quot;In Stock → Yes&quot; to re-enable them tomorrow.
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setConfirmMarkAllOut(false)}
+                  disabled={markingAllOutOfStock}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold hover:bg-stone-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMarkAllOutOfStock}
+                  disabled={markingAllOutOfStock}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {markingAllOutOfStock ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  {markingAllOutOfStock ? "Marking..." : "Yes, Mark All Out"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deletingProduct && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-6 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <h3 className="text-lg font-extrabold text-stone-900">Delete Product?</h3>
+                  <p className="text-sm text-stone-600">Are you sure you want to permanently delete <strong className="text-stone-900">&ldquo;{deletingProduct.name}&rdquo;</strong>?</p>
+                  <p className="text-xs text-red-600 font-semibold">This cannot be undone. The product will be removed from the store immediately.</p>
+                </div>
+              </div>
+              <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
+                <button onClick={() => setDeletingProduct(null)} disabled={submittingProduct} className="flex-1 px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold hover:bg-stone-100 transition">Cancel</button>
+                <button onClick={handleDeleteProduct} disabled={submittingProduct} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                  {submittingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {submittingProduct ? "Deleting..." : "Yes, Delete It"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+
 
       <Footer />
     </div>

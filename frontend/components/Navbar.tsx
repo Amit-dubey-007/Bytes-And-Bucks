@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Search,
   ShoppingBag,
+  User,
   Menu,
   X,
   ArrowRight,
@@ -15,6 +16,7 @@ import {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -163,33 +165,38 @@ export default function Navbar() {
                 onClick={() => setSearchOpen(true)}
                 className="rounded-full p-2 text-[#183D2B]/85 transition-colors duration-200 hover:bg-[#EDE2CF]/60 hover:text-[#183D2B]"
                 aria-label="Open search"
+                title="Search products"
               >
                 <Search className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
 
-              {/* SHOPPING BAG */}
-              <button
-                type="button"
-                onClick={() => setCartOpen(true)}
+              {/* ORDERS LINK (Cart type symbol next to search redirects to orders page) */}
+              <Link
+                href="/orders"
                 className="relative rounded-full p-2 text-[#183D2B]/85 transition-colors duration-200 hover:bg-[#EDE2CF]/60 hover:text-[#183D2B]"
-                aria-label={`Open cart, ${cartCount} items`}
+                aria-label="My Orders"
+                title="My Orders"
               >
                 <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Link>
 
-                {cartCount > 0 && (
-                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C66A45] text-[10px] font-bold text-white shadow-sm">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
+              {/* PROFILE LINK */}
+              <Link
+                href="/profile"
+                className="rounded-full p-2 text-[#183D2B]/85 transition-colors duration-200 hover:bg-[#EDE2CF]/60 hover:text-[#183D2B]"
+                aria-label="My Profile"
+                title="My Profile"
+              >
+                <User className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Link>
 
               {/* ORDER NOW */}
-              <a
-                href="/#order"
+              <Link
+                href="/products"
                 className="hidden items-center justify-center rounded-full bg-[#183D2B] px-5 py-2.5 text-sm font-medium text-[#F7F1E5] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#10291E] hover:shadow-md sm:inline-flex"
               >
                 Order Now
-              </a>
+              </Link>
 
               {/* MOBILE MENU BUTTON */}
               <button
@@ -280,6 +287,32 @@ export default function Navbar() {
                   )}
                 </Link>
               ))}
+
+              <Link
+                href="/orders"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-lg font-medium transition-colors ${
+                  pathname === "/orders"
+                    ? "bg-[#EDE2CF] font-semibold text-[#183D2B]"
+                    : "text-[#252820] hover:bg-[#EDE2CF]/50"
+                }`}
+              >
+                <span>My Orders</span>
+                <ChevronRightIcon className="h-4 w-4 text-[#879568]" />
+              </Link>
+
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-lg font-medium transition-colors ${
+                  pathname === "/profile"
+                    ? "bg-[#EDE2CF] font-semibold text-[#183D2B]"
+                    : "text-[#252820] hover:bg-[#EDE2CF]/50"
+                }`}
+              >
+                <span>My Profile</span>
+                <ChevronRightIcon className="h-4 w-4 text-[#879568]" />
+              </Link>
             </nav>
 
             {/* MOBILE SEARCH */}
@@ -297,14 +330,14 @@ export default function Navbar() {
 
             {/* MOBILE ORDER BUTTON */}
             <div className="pt-2">
-              <a
-                href="/#order"
+              <Link
+                href="/products"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#183D2B] px-5 py-3 text-base font-semibold text-[#F7F1E5] shadow-sm hover:bg-[#10291E]"
               >
                 <span>Order Now</span>
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
             </div>
 
             {/* BRAND TAGLINE */}
@@ -328,13 +361,24 @@ export default function Navbar() {
 
           {/* SEARCH PANEL */}
           <div className="animate-fade-in-up relative z-10 w-full max-w-xl rounded-2xl border border-[#EDE2CF] bg-[#F7F1E5] p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#EDE2CF] pb-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+                  setSearchOpen(false);
+                }
+              }}
+              className="flex items-center justify-between border-b border-[#EDE2CF] pb-3"
+            >
               <div className="flex flex-1 items-center gap-3">
-                <Search className="h-5 w-5 text-[#879568]" />
+                <button type="submit" aria-label="Search products">
+                  <Search className="h-5 w-5 text-[#879568] hover:text-[#183D2B] transition-colors cursor-pointer" />
+                </button>
 
                 <input
                   type="text"
-                  placeholder="Search bowls, ingredients, dressings..."
+                  placeholder="Search bowls, ingredients, snacks..."
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   autoFocus
@@ -351,7 +395,7 @@ export default function Navbar() {
               >
                 <X className="h-5 w-5" />
               </button>
-            </div>
+            </form>
 
             {/* POPULAR SEARCHES */}
             <div className="mt-4">
@@ -364,12 +408,12 @@ export default function Navbar() {
                   <button
                     key={item}
                     type="button"
-                    onClick={() => setSearchQuery(item)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                      searchQuery === item
-                        ? "bg-[#D8A641]/30 text-[#183D2B]"
-                        : "bg-[#EDE2CF] text-[#183D2B] hover:bg-[#D8A641]/20"
-                    }`}
+                    onClick={() => {
+                      setSearchQuery(item);
+                      router.push(`/products?search=${encodeURIComponent(item)}`);
+                      setSearchOpen(false);
+                    }}
+                    className="rounded-full px-3 py-1.5 text-xs font-medium bg-[#EDE2CF] text-[#183D2B] hover:bg-[#D8A641]/20 transition-colors"
                   >
                     {item}
                   </button>
@@ -379,7 +423,7 @@ export default function Navbar() {
 
             {/* SEARCH FOOTER */}
             <div className="mt-6 flex items-center justify-between border-t border-[#EDE2CF] pt-4 text-xs text-[#879568]">
-              <span>Press ESC to close</span>
+              <span>Press Enter or ESC</span>
 
               <Link
                 href="/products"

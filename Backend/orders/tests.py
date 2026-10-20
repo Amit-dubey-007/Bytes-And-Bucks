@@ -575,7 +575,7 @@ class Stage4OwnerAndPaymentTests(APITestCase):
 
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.STATUS_APPROVED)
-        self.assertEqual(self.order.payment_status, Order.PAYMENT_UNPAID)
+        self.assertEqual(self.order.payment_status, Order.PAYMENT_VERIFIED)
         self.assertEqual(self.order.payment_instructions, custom_instructions)
         self.assertEqual(self.order.internal_note, "Verified customer identity")
 
