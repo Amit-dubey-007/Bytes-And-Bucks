@@ -117,34 +117,7 @@ export default function Home() {
         {/* 7. ORDER MILLETMARG (#about) */}
         <OrderMilletMargSection />
 
-        {/* 8. ORDER NOW SECTION (#order) */}
-        <section id="order" className="py-16 bg-[#183D2B] text-[#F7F1E5]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-            <span className="text-xs uppercase tracking-[0.25em] font-semibold text-[#D8A641]">
-              Fresh Daily Delivery &amp; Pickup
-            </span>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold">
-              Ready for a Brighter Tomorrow?
-            </h2>
-            <p className="max-w-xl mx-auto text-base text-[#F7F1E5]/80 font-normal leading-relaxed">
-              Order your warm artisan MilletBowl now or visit our wellness cafe for a wholesome culinary experience.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <a
-                href="#milletbowl"
-                className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#C66A45] hover:bg-[#B55A37] text-white font-semibold text-base transition-all duration-200 shadow-md hover:-translate-y-0.5"
-              >
-                Order Signature MilletBowl ($14.50)
-              </a>
-              <a
-                href="#contact"
-                className="w-full sm:w-auto px-8 py-4 rounded-full border border-[#F7F1E5]/40 hover:border-[#F7F1E5] text-[#F7F1E5] font-medium text-base transition-colors"
-              >
-                Cafe Hours &amp; Locations
-              </a>
-            </div>
-          </div>
-        </section>
+     
       </main>
 
       {/* 9. FOOTER */}
