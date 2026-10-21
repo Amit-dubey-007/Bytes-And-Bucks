@@ -45,9 +45,9 @@ export default function Home() {
                 </div>
 
                 <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[#183D2B] leading-tight">
-                  Crafted for Wellness.
+                  Crafted for Wellness
                   <br />
-                  <span className="text-[#C66A45]">Flavored by Nature.</span>
+                  <span className="text-[#C66A45]">Flavored by Nature</span>
                 </h2>
 
                 <p className="text-base sm:text-lg text-[#252820]/80 leading-relaxed font-normal">
@@ -89,7 +89,7 @@ export default function Home() {
               <div className="lg:col-span-6 relative">
                 <div className="relative aspect-square max-w-[480px] mx-auto rounded-[32px] sm:rounded-[44px] overflow-hidden shadow-xl border border-[#EDE2CF]">
                   <Image
-                    src="/millet-bowl-hero.jpg"
+                    src="/millet-bowl-hero2.jpg"
                     alt="Wholesome MilletBowl detail"
                     fill
                     className="object-cover"
