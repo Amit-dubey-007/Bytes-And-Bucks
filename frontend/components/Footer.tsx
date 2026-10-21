@@ -137,10 +137,12 @@ export default function Footer() {
     },
   ];
 
+  // Navigation links
   const navigationLinks = [
     { label: "Home", href: "/" },
     { label: "Our Products", href: "/products" },
     { label: "About Us", href: "/about" },
+    { label: "FAQ & Reviews", href: "/faq-reviews" },
     { label: "Contact Us", href: "/contact" },
   ];
 

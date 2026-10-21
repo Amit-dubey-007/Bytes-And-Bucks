@@ -88,6 +88,11 @@ export default function Navbar() {
       href: "/about",
       active: pathname === "/about",
     },
+     {
+    name: "FAQ & Reviews",
+    href: "/faq-reviews",
+    active: pathname === "/faq-reviews",
+  },
     {
       name: "Contact Us",
       href: "/contact",
