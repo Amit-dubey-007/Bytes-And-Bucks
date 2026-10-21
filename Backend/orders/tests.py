@@ -1169,4 +1169,89 @@ class BugFixVerificationTests(APITestCase):
         self.assertEqual(data["recipient_name"], "Test Customer")
         self.assertEqual(data["phone_number"], "9876543210")
 
+    @patch("orders.views.get_road_distance_km")
+    def test_checkout_with_null_profile_phone_uses_payload_phone(self, mock_distance):
+        """Checkout must succeed when user profile exists with phone_number=None if payload provides phone."""
+        mock_distance.return_value = Decimal("4.0")
+        self.customer_profile.phone_number = None
+        self.customer_profile.save()
+
+        # Update address phone to empty so resolution relies on payload
+        Address.objects.filter(id=self.address.id).update(phone_number="")
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+        res = self.client.post(reverse("checkout-buy-now"), {
+            "product_id": self.product.id,
+            "quantity": 1,
+            "address_id": self.address.id,
+            "phone_number": "9876543210"
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        data = res.json()
+        self.assertEqual(data["phone_number"], "9876543210")
+
+    @patch("orders.views.get_road_distance_km")
+    def test_checkout_with_missing_profile_uses_payload_phone(self, mock_distance):
+        """Checkout must succeed safely when user profile is missing and payload provides phone."""
+        mock_distance.return_value = Decimal("4.0")
+        self.customer_profile.delete()
+
+        # Refresh user instance to clear cached profile relation
+        self.customer.refresh_from_db()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+        res = self.client.post(reverse("checkout-buy-now"), {
+            "product_id": self.product.id,
+            "quantity": 1,
+            "address_id": self.address.id,
+            "phone_number": "9123456780"
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        data = res.json()
+        self.assertEqual(data["phone_number"], "9123456780")
+
+    @patch("orders.views.get_road_distance_km")
+    def test_checkout_prefills_valid_saved_phone_number(self, mock_distance):
+        """Checkout must prefill valid saved phone number from address or profile."""
+        mock_distance.return_value = Decimal("4.0")
+        self.customer_profile.phone_number = "9988776655"
+        self.customer_profile.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+        res = self.client.post(reverse("checkout-buy-now"), {
+            "product_id": self.product.id,
+            "quantity": 1,
+            "address_id": self.address.id
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        data = res.json()
+        # Address phone is 9876543210
+        self.assertEqual(data["phone_number"], "9876543210")
+
+    @patch("orders.views.get_road_distance_km")
+    def test_checkout_fails_with_400_when_phone_number_is_missing(self, mock_distance):
+        """Checkout must return clear 400 validation error when phone number cannot be obtained."""
+        mock_distance.return_value = Decimal("4.0")
+        self.customer_profile.phone_number = None
+        self.customer_profile.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.customer_token.key}")
+        res = self.client.post(reverse("checkout-buy-now"), {
+            "product_id": self.product.id,
+            "quantity": 1,
+            "new_address": {
+                "address_line": "123 Main Rd",
+                "city": "Indore",
+                "state": "Madhya Pradesh",
+                "postal_code": "452001",
+                "latitude": 22.7196,
+                "longitude": 75.8577,
+            }
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        data = res.json()
+        self.assertIn("phone_number", data)
+        self.assertIn("Phone number is required.", str(data["phone_number"]))
+
+
 

@@ -183,61 +183,85 @@ class DeliveryQuoteView(APIView):
 def _resolve_checkout_address(user, validated_data):
     """Helper to safely resolve address, coordinate snapshots, and optional saving."""
     addr_id = validated_data.get('address_id')
-    new_addr = validated_data.get('new_address')
+    new_addr = validated_data.get('new_address') or {}
     save_addr = validated_data.get('save_address', False)
     phone = (validated_data.get('phone_number') or '').strip()
     recipient = (validated_data.get('recipient_name') or '').strip()
-    room_number = validated_data.get('room_number') or ''
+    room_number = (validated_data.get('room_number') or '').strip()
 
     source_address = None
 
     user_profile = getattr(user, 'profile', None)
-    profile_name = (user_profile.display_name if user_profile else '').strip() or user.get_full_name().strip() or user.username
-    profile_phone = (user_profile.phone_number if user_profile else '').strip()
+    profile_name = ''
+    if user_profile and getattr(user_profile, 'display_name', None):
+        profile_name = str(user_profile.display_name).strip()
+    if not profile_name and hasattr(user, 'get_full_name'):
+        profile_name = (user.get_full_name() or '').strip()
+    if not profile_name:
+        profile_name = (getattr(user, 'username', '') or '').strip()
+
+    profile_phone = ''
+    if user_profile and getattr(user_profile, 'phone_number', None):
+        profile_phone = str(user_profile.phone_number).strip()
 
     if addr_id:
         source_address = Address.objects.filter(id=addr_id, user=user).first()
         if not source_address:
             raise ValidationError({"address_id": ["Address not found or does not belong to you."]})
 
-        recipient_name = recipient or source_address.recipient_name or profile_name
-        phone_number = phone or source_address.phone_number or profile_phone
+        addr_recipient = (getattr(source_address, 'recipient_name', None) or '').strip()
+        addr_phone = (getattr(source_address, 'phone_number', None) or '').strip()
+
+        recipient_name = recipient or addr_recipient or profile_name
+        phone_number = phone or addr_phone or profile_phone
         if not phone_number:
             raise ValidationError({"phone_number": ["Phone number is required."]})
-        validate_indian_phone_number(phone_number)
+        try:
+            validate_indian_phone_number(phone_number)
+        except Exception:
+            raise ValidationError({"phone_number": ["Enter a valid 10-digit Indian mobile number starting with 6-9 (optional +91)."]})
 
         lat = source_address.latitude
         lon = source_address.longitude
 
         snapshot = {
-            "label": source_address.label,
+            "label": source_address.label or 'Home',
             "recipient_name": recipient_name,
             "phone_number": phone_number,
             "address_line": source_address.address_line,
-            "house_number": source_address.house_number,
-            "room_number": room_number or source_address.room_number,
-            "landmark": source_address.landmark,
+            "house_number": source_address.house_number or '',
+            "room_number": room_number or source_address.room_number or '',
+            "landmark": source_address.landmark or '',
             "city": source_address.city,
             "state": source_address.state,
             "postal_code": source_address.postal_code,
             "country": source_address.country,
             "latitude": str(lat),
             "longitude": str(lon),
-            "formatted_address": source_address.formatted_address,
+            "formatted_address": source_address.formatted_address or '',
         }
     else:
-        recipient_name = recipient or (new_addr.get('recipient_name') if new_addr else '').strip() or profile_name
-        phone_number = phone or (new_addr.get('phone_number') if new_addr else '').strip() or profile_phone
+        new_recipient = ''
+        new_phone = ''
+        if isinstance(new_addr, dict):
+            new_recipient = (new_addr.get('recipient_name') or '').strip()
+            new_phone = (new_addr.get('phone_number') or '').strip()
+
+        recipient_name = recipient or new_recipient or profile_name
+        phone_number = phone or new_phone or profile_phone
 
         if not recipient_name:
             raise ValidationError({"recipient_name": ["Recipient name is required."]})
         if not phone_number:
             raise ValidationError({"phone_number": ["Phone number is required."]})
-        validate_indian_phone_number(phone_number)
+        try:
+            validate_indian_phone_number(phone_number)
+        except Exception:
+            raise ValidationError({"phone_number": ["Enter a valid 10-digit Indian mobile number starting with 6-9 (optional +91)."]})
 
         # Validate required fields in new_address
         for req_field in ['address_line', 'city', 'postal_code', 'latitude', 'longitude']:
-            if not new_addr or not new_addr.get(req_field):
+            if not isinstance(new_addr, dict) or not new_addr.get(req_field):
                 raise ValidationError({"new_address": [f"'{req_field}' is required in new_address."]})
 
         lat = Decimal(str(new_addr['latitude']))
@@ -249,20 +273,20 @@ def _resolve_checkout_address(user, validated_data):
             raise ValidationError({"new_address": ["Longitude must be between -180 and 180."]})
 
         snapshot = {
-            "label": new_addr.get('label', 'Home'),
+            "label": new_addr.get('label') or 'Home',
             "recipient_name": recipient_name,
             "phone_number": phone_number,
             "address_line": new_addr['address_line'],
-            "house_number": new_addr.get('house_number', ''),
-            "room_number": room_number or new_addr.get('room_number', ''),
-            "landmark": new_addr.get('landmark', ''),
-            "city": new_addr.get('city', 'Indore'),
-            "state": new_addr.get('state', 'Madhya Pradesh'),
+            "house_number": new_addr.get('house_number') or '',
+            "room_number": room_number or (new_addr.get('room_number') or ''),
+            "landmark": new_addr.get('landmark') or '',
+            "city": new_addr.get('city') or 'Indore',
+            "state": new_addr.get('state') or 'Madhya Pradesh',
             "postal_code": new_addr['postal_code'],
-            "country": new_addr.get('country', 'India'),
+            "country": new_addr.get('country') or 'India',
             "latitude": str(lat),
             "longitude": str(lon),
-            "formatted_address": new_addr.get('formatted_address', ''),
+            "formatted_address": new_addr.get('formatted_address') or '',
         }
 
         if save_addr:
@@ -871,8 +895,8 @@ class OwnerOrderApproveView(APIView):
 
         instructions = serializer.validated_data.get('payment_instructions') or get_default_payment_instructions(order)
         internal_note = serializer.validated_data.get('internal_note', '')
-        driver_name = serializer.validated_data.get('driver_name', '').strip()
-        driver_phone = serializer.validated_data.get('driver_phone', '').strip()
+        driver_name = (serializer.validated_data.get('driver_name') or '').strip()
+        driver_phone = (serializer.validated_data.get('driver_phone') or '').strip()
         raw_est = serializer.validated_data.get('estimated_delivery_time')
 
         with transaction.atomic():
