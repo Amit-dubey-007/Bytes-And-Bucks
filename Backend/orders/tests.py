@@ -1,7 +1,8 @@
 import io
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from PIL import Image
+import requests
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -13,7 +14,14 @@ from rest_framework.test import APITestCase
 
 from accounts.models import Address, UserProfile
 from products.models import Product
-from .delivery import calculate_delivery_fees, RoutingServiceError
+from .delivery import (
+    calculate_delivery_fees,
+    get_road_distance_km,
+    RoutingServiceError,
+    UnroutableLocationError,
+    InvalidCoordinatesError,
+    _routing_cache,
+)
 from .models import Cart, CartItem, Order, OrderItem, PaymentReceipt, Notification, DeliveryStatusLog, Review
 from .whatsapp import generate_whatsapp_order_url
 
@@ -1252,6 +1260,150 @@ class BugFixVerificationTests(APITestCase):
         data = res.json()
         self.assertIn("phone_number", data)
         self.assertIn("Phone number is required.", str(data["phone_number"]))
+
+
+class RoutingAndDeliveryQuoteTests(APITestCase):
+    """
+    Regression and unit tests for:
+    - Successful route quote.
+    - Unroutable customer coordinate / ORS error code 2010.
+    - Supported snapping within limit.
+    - Invalid coordinates and coordinate order inversion.
+    - Genuine provider outage or timeout (HTTP 503).
+    - Route beyond 20 km boundary.
+    - Confirmation that no straight-line fallback is used.
+    """
+    def setUp(self):
+        _routing_cache.clear()
+        self.user = User.objects.create_user(username="quote_user", email="quser@test.com")
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+
+    @patch("orders.delivery.requests.post")
+    def test_successful_route_quote(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{"summary": {"distance": 5200.0}}]
+        }
+        mock_post.return_value = mock_resp
+
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "22.720000",
+            "longitude": "75.860000",
+            "subtotal": "200.00"
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.json()
+        self.assertEqual(Decimal(str(data["road_distance_km"])), Decimal("5.20"))
+        self.assertEqual(data["billable_distance_km"], 6)
+        self.assertEqual(Decimal(str(data["delivery_fee_charged"])), Decimal("60.00"))
+        self.assertTrue(data["is_eligible"])
+
+    @patch("orders.delivery.requests.post")
+    def test_unroutable_coordinate_error_code_2010_returns_400(self, mock_post):
+        """ORS error code 2010 must return HTTP 400 Bad Request asking customer to adjust map pin."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.json.return_value = {
+            "error": {
+                "code": 2010,
+                "message": "Could not find routable point within a radius of 350.0 meters of specified coordinate 1: 75.833325 22.695518."
+            }
+        }
+        mock_post.return_value = mock_resp
+
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "22.720000",
+            "longitude": "75.860000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        data = res.json()
+        self.assertIn("detail", data)
+        self.assertIn("Could not find an accessible road", data["detail"])
+        self.assertIn("adjust your map pin", data["detail"])
+
+    @patch("orders.delivery.requests.post")
+    def test_unroutable_snapping_succeeds_within_search_radius(self, mock_post):
+        """When initial 350m radius fails with 2010, documented radius expansion recovers valid route."""
+        fail_resp = MagicMock()
+        fail_resp.status_code = 404
+        fail_resp.json.return_value = {"error": {"code": 2010, "message": "Could not find routable point"}}
+
+        success_resp = MagicMock()
+        success_resp.status_code = 200
+        success_resp.json.return_value = {"routes": [{"summary": {"distance": 4500.0}}]}
+
+        mock_post.side_effect = [fail_resp, success_resp]
+
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "22.720000",
+            "longitude": "75.860000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.json()
+        self.assertEqual(Decimal(str(data["road_distance_km"])), Decimal("4.50"))
+
+    def test_invalid_coordinates_out_of_bounds(self):
+        """Coordinates outside valid lat/lon bounds return 400 Bad Request."""
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "95.000000",
+            "longitude": "75.860000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_coordinates_inverted_order(self):
+        """Inverted coordinates (lat and lon swapped) return 400 Bad Request."""
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "75.860000",
+            "longitude": "22.720000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("inverted", str(res.json()))
+
+    @patch("orders.delivery.requests.post")
+    def test_provider_outage_or_timeout_returns_503(self, mock_post):
+        """Genuine provider downtime/timeouts return HTTP 503 with safe user message."""
+        mock_post.side_effect = requests.Timeout("Connection timed out")
+
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "22.720000",
+            "longitude": "75.860000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        data = res.json()
+        self.assertIn("temporarily unavailable", data["detail"])
+
+    @patch("orders.delivery.requests.post")
+    def test_route_beyond_20_km_ineligible(self, mock_post):
+        """Route beyond 20 km is marked is_eligible=False."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{"summary": {"distance": 25500.0}}]
+        }
+        mock_post.return_value = mock_resp
+
+        res = self.client.post(reverse("delivery-quote"), {
+            "latitude": "22.850000",
+            "longitude": "76.050000"
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.json()
+        self.assertFalse(data["is_eligible"])
+        self.assertEqual(Decimal(str(data["road_distance_km"])), Decimal("25.50"))
+
+    @patch("orders.delivery.requests.post")
+    def test_no_straight_line_fallback_used(self, mock_post):
+        """No straight-line distance fallback is ever used when road routing fails."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.text = "Internal Server Error"
+        mock_post.return_value = mock_resp
+
+        with self.assertRaises(RoutingServiceError):
+            get_road_distance_km(Decimal("22.720000"), Decimal("75.860000"))
+
 
 
 

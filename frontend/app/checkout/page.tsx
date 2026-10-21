@@ -222,7 +222,15 @@ function CheckoutContent() {
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quote?.is_eligible) {
+    if (quoteError) {
+      setError(quoteError);
+      return;
+    }
+    if (!quote) {
+      setError("Please select a delivery address or set a map location to calculate delivery fees.");
+      return;
+    }
+    if (!quote.is_eligible) {
       setError("Delivery is not available for this location (> 20 km cafe delivery radius). Please choose an address closer to Indore.");
       return;
     }
@@ -707,7 +715,13 @@ function CheckoutContent() {
                   )}
 
                   {quoteError && (
-                    <p className="text-[11px] text-red-600">{quoteError}</p>
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                      <div className="flex-1 space-y-0.5">
+                        <p className="font-semibold text-amber-800">Delivery Route Issue</p>
+                        <p className="text-[11px] text-amber-700 leading-relaxed">{quoteError}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -743,7 +757,7 @@ function CheckoutContent() {
                 {/* Submit to WhatsApp Button */}
                 <button
                   type="submit"
-                  disabled={submitting || (quote ? !quote.is_eligible : false)}
+                  disabled={submitting || quoteLoading || !quote || !quote.is_eligible || !!quoteError}
                   className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#20ba59] active:scale-98 transition shadow-md disabled:opacity-50"
                 >
                   {submitting ? (

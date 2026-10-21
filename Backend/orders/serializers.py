@@ -151,6 +151,10 @@ class DeliveryQuoteRequestSerializer(serializers.Serializer):
         if lon is not None and (lon < Decimal('-180.0') or lon > Decimal('180.0')):
             raise serializers.ValidationError({"longitude": "Longitude must be between -180 and 180 degrees."})
 
+        if lat is not None and lon is not None:
+            if lat > Decimal('60.0') and lon < Decimal('40.0'):
+                raise serializers.ValidationError("Latitude and longitude appear to be inverted. Coordinates should be latitude followed by longitude.")
+
         return attrs
 
 

@@ -15,7 +15,13 @@ from rest_framework.views import APIView
 from accounts.models import Address, validate_indian_phone_number
 from accounts.permissions import IsOwner
 from products.models import Product
-from .delivery import calculate_delivery_fees, get_road_distance_km, RoutingServiceError
+from .delivery import (
+    calculate_delivery_fees,
+    get_road_distance_km,
+    RoutingServiceError,
+    UnroutableLocationError,
+    InvalidCoordinatesError,
+)
 from .models import Cart, CartItem, Order, OrderItem, PaymentReceipt, Notification, DeliveryStatusLog, Review
 from .notifications import create_notification, notify_owners
 from .payment import get_default_payment_instructions, validate_payment_receipt_file
@@ -170,9 +176,14 @@ class DeliveryQuoteView(APIView):
 
         try:
             distance_km = get_road_distance_km(lat, lon)
-        except RoutingServiceError as exc:
+        except (InvalidCoordinatesError, UnroutableLocationError) as exc:
             return Response(
-                {"detail": f"Routing service failure: {exc}"},
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except RoutingServiceError:
+            return Response(
+                {"detail": "Delivery routing service is temporarily unavailable. Please try again shortly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
@@ -343,9 +354,14 @@ class CheckoutBuyNowView(APIView):
 
         try:
             distance_km = get_road_distance_km(lat, lon)
-        except RoutingServiceError as exc:
+        except (InvalidCoordinatesError, UnroutableLocationError) as exc:
             return Response(
-                {"detail": f"Routing service error: {exc}"},
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except RoutingServiceError:
+            return Response(
+                {"detail": "Delivery routing service is temporarily unavailable. Please try again shortly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
@@ -450,9 +466,14 @@ class CheckoutCartView(APIView):
 
         try:
             distance_km = get_road_distance_km(lat, lon)
-        except RoutingServiceError as exc:
+        except (InvalidCoordinatesError, UnroutableLocationError) as exc:
             return Response(
-                {"detail": f"Routing service error: {exc}"},
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except RoutingServiceError:
+            return Response(
+                {"detail": "Delivery routing service is temporarily unavailable. Please try again shortly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
