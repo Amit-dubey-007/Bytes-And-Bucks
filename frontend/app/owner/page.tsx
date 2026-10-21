@@ -25,6 +25,7 @@ import {
   updateProduct,
   deleteProduct,
   markAllOutOfStock,
+  markAllInStock,
   ProductData,
   ReviewData,
   UserProfileData,
@@ -114,6 +115,8 @@ function OwnerDashboardContent() {
   const [pInStock, setPInStock] = useState(true);
   const [markingAllOutOfStock, setMarkingAllOutOfStock] = useState(false);
   const [confirmMarkAllOut, setConfirmMarkAllOut] = useState(false);
+  const [markingAllInStock, setMarkingAllInStock] = useState(false);
+  const [confirmMarkAllIn, setConfirmMarkAllIn] = useState(false);
   const [pIsAvailable, setPIsAvailable] = useState(true);
   const [pImageFile, setPImageFile] = useState<File | null>(null);
 
@@ -375,6 +378,22 @@ function OwnerDashboardContent() {
       setError(msg);
     } finally {
       setMarkingAllOutOfStock(false);
+    }
+  };
+
+  const handleMarkAllInStock = async () => {
+    setMarkingAllInStock(true);
+    setConfirmMarkAllIn(false);
+    try {
+      const res = await markAllInStock();
+      setSuccessMessage(res.detail || "All products are now back in stock.");
+      loadProducts();
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to mark all in stock";
+      setError(msg);
+    } finally {
+      setMarkingAllInStock(false);
     }
   };
 
@@ -978,12 +997,20 @@ function OwnerDashboardContent() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              onClick={() => setConfirmMarkAllIn(true)}
+              disabled={markingAllInStock}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition shadow-sm"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Mark All In Stock
+            </button>
+            <button
               onClick={() => setConfirmMarkAllOut(true)}
               disabled={markingAllOutOfStock}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 hover:bg-red-100 transition shadow-sm"
             >
               <XCircle className="w-3.5 h-3.5" />
-              Mark All Out of Stock Today
+              Mark All Out of Stock
             </button>
             <button
               onClick={loadProducts}
@@ -2017,6 +2044,46 @@ function OwnerDashboardContent() {
           </div>
         )}
 
+        {/* Mark All In Stock Confirm Modal */}
+        {confirmMarkAllIn && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-6 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <h3 className="text-lg font-extrabold text-stone-900">Mark All Back In Stock?</h3>
+                  <p className="text-sm text-stone-600">
+                    This will mark <strong className="text-stone-900">every product</strong> as available immediately.
+                    Customers will be able to order all items again.
+                  </p>
+                  <p className="text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-2">
+                    Use this at the start of a new day to re-open the full menu at once.
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setConfirmMarkAllIn(false)}
+                  disabled={markingAllInStock}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold hover:bg-stone-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMarkAllInStock}
+                  disabled={markingAllInStock}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {markingAllInStock ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {markingAllInStock ? "Updating..." : "Yes, Mark All In Stock"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Mark All Out of Stock Confirm Modal */}
         {confirmMarkAllOut && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2032,7 +2099,7 @@ function OwnerDashboardContent() {
                     Customers will not be able to order anything until you re-enable items individually.
                   </p>
                   <p className="text-xs text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                    Tip: Go to each product and toggle &quot;In Stock → Yes&quot; to re-enable them tomorrow.
+                    Tip: Use &quot;Mark All In Stock&quot; at the start of the next day to restore everything at once.
                   </p>
                 </div>
               </div>

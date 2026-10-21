@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/media/**",
       },
+      {
+        // Cloudinary CDN — product images stored in Cloudinary
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
     ],
   },
 };

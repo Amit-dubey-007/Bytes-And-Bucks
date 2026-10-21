@@ -240,42 +240,42 @@ export default function AboutPage() {
           </div>
 
           {foundersList.length > 0 ? (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
               {foundersList.map((founder) => (
                 <article
                   key={founder.id}
-                  className="overflow-hidden rounded-3xl border border-[#EDE2CF] bg-white"
+                  className="group overflow-hidden rounded-3xl border border-[#EDE2CF] bg-white shadow-sm transition-shadow hover:shadow-lg"
                 >
-                  <div className="relative aspect-[4/3] bg-[#EDE2CF]">
+                  {/* Portrait image — clean, no overlay */}
+                  <div className="relative aspect-[4/5] bg-[#EDE2CF] overflow-hidden">
                     <Image
                       src={founder.image}
                       alt={founder.imageAlt}
                       fill
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
 
-                  <div className="p-6 sm:p-8">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#C66A45]">
+                  {/* Content below image */}
+                  <div className="p-5 sm:p-6">
+                    <span className="inline-block rounded-full bg-[#C66A45]/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#C66A45]">
                       {founder.role}
                     </span>
-
-                    <h3 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">
+                    <h3 className="mt-2 font-serif text-xl font-bold leading-tight text-[#183D2B] sm:text-2xl">
                       {founder.name}
                     </h3>
 
-                    <p className="mt-4 text-sm leading-7 text-[#252820]/80 sm:text-base">
+                    <p className="mt-3 text-sm leading-7 text-[#252820]/80">
                       {founder.bio}
                     </p>
 
                     {founder.motivation && (
-                      <blockquote className="mt-6 rounded-2xl border-l-4 border-[#C66A45] bg-[#F7F1E5] p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-[#C66A45]">
+                      <blockquote className="mt-5 rounded-2xl border-l-4 border-[#C66A45] bg-[#F7F1E5] p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#C66A45]">
                           Why Millets?
                         </p>
-
-                        <p className="mt-2 text-sm italic leading-6 text-[#183D2B]/90">
+                        <p className="mt-1.5 text-xs italic leading-5 text-[#183D2B]/90 sm:text-sm sm:leading-6">
                           &ldquo;{founder.motivation}&rdquo;
                         </p>
                       </blockquote>
@@ -315,10 +315,7 @@ export default function AboutPage() {
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-white/80 sm:text-base">
-                  To make traditional Indian millets an enjoyable part of
-                  everyday eating by bringing together familiar ingredients,
-                  thoughtful food choices, and contemporary culinary
-                  experiences.
+                  To bring India's traditional millets closer to modern households by making them accessible, enjoyable, and easy to incorporate into everyday meals. We strive to celebrate our culinary roots while inspiring people to explore the versatility of these timeless grains.
                 </p>
               </article>
 
@@ -332,9 +329,7 @@ export default function AboutPage() {
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-white/80 sm:text-base">
-                  To inspire a future where traditional grains are celebrated,
-                  India's food heritage is preserved, and conscious food
-                  choices become part of everyday life.
+                  To create a future where millets are celebrated beyond tradition and embraced as part of contemporary food culture. We aspire to connect generations through food, encourage thoughtful choices, and keep India's rich millet heritage alive for years to come.
                 </p>
               </article>
             </div>

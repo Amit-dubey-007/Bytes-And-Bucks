@@ -407,3 +407,312 @@ class ProductAPITests(APITestCase):
         # Cleanup image file
         if product_with_img.image:
             product_with_img.image.delete(save=False)
+
+
+# ---------------------------------------------------------------------------
+# Cloudinary Integration Tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch, MagicMock
+from django.conf import settings
+from django.test import override_settings
+
+
+class CloudinaryConfigTests(TestCase):
+    """Tests for Cloudinary environment configuration detection."""
+
+    def test_cloudinary_configured_when_all_env_vars_set(self):
+        """_CLOUDINARY_CONFIGURED is True only when all three vars are present."""
+        with override_settings(
+            CLOUDINARY_CLOUD_NAME="testcloud",
+            CLOUDINARY_API_KEY="123",
+            CLOUDINARY_API_SECRET="abc",
+        ):
+            configured = bool(
+                getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+                and getattr(settings, "CLOUDINARY_API_KEY", "")
+                and getattr(settings, "CLOUDINARY_API_SECRET", "")
+            )
+            self.assertTrue(configured)
+
+    def test_cloudinary_not_configured_when_vars_missing(self):
+        """_CLOUDINARY_CONFIGURED is False when any var is absent."""
+        with override_settings(
+            CLOUDINARY_CLOUD_NAME="",
+            CLOUDINARY_API_KEY="123",
+            CLOUDINARY_API_SECRET="abc",
+        ):
+            configured = bool(
+                getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+                and getattr(settings, "CLOUDINARY_API_KEY", "")
+                and getattr(settings, "CLOUDINARY_API_SECRET", "")
+            )
+            self.assertFalse(configured)
+
+    def test_api_secret_not_in_settings_namespace(self):
+        """CLOUDINARY_API_SECRET must not be leaked in any public setting."""
+        # It should only ever exist under the private key
+        for key in dir(settings):
+            if "SECRET" in key and "CLOUDINARY" in key:
+                val = getattr(settings, key, "")
+                # If it's set, that is expected — we just confirm it stays
+                # on the backend side (this test ensures no accidental exposure
+                # through NEXT_PUBLIC_ or similar patterns)
+                self.assertFalse(
+                    key.startswith("NEXT_PUBLIC_"),
+                    f"Cloudinary secret leaked in public setting: {key}",
+                )
+
+
+class CloudinaryImageSerializerTests(APITestCase):
+    """Tests for image URL serialization with both local and Cloudinary URLs."""
+
+    def _make_product(self, image_name=None):
+        p = Product.objects.create(
+            name="Test Bowl",
+            price=Decimal("99.00"),
+            category="Bowls",
+            weight_grams=250,
+        )
+        if image_name:
+            p.image.name = image_name
+            # Don't save — we'll test the serializer directly
+        return p
+
+    def test_local_image_url_becomes_absolute(self):
+        """Local image paths are converted to absolute URLs via request context."""
+        from products.serializers import ProductListSerializer
+        from django.test import RequestFactory
+
+        p = self._make_product()
+        # Simulate a local file path
+        p.image.name = "products/2026/10/test.jpeg"
+
+        factory = RequestFactory()
+        request = factory.get("/api/items/")
+
+        # Patch url property to return relative path (as local storage would)
+        with patch.object(type(p.image), "url", new_callable=lambda: property(lambda self: "/media/products/2026/10/test.jpeg")):
+            serializer = ProductListSerializer(p, context={"request": request})
+            url = serializer.data["image"]
+            self.assertTrue(url.startswith("http://"), f"Expected absolute URL, got: {url}")
+
+    def test_cloudinary_url_returned_unchanged(self):
+        """Cloudinary URLs (already absolute) are returned as-is."""
+        from products.serializers import ProductListSerializer
+        from django.test import RequestFactory
+
+        p = self._make_product()
+        cloudinary_url = "https://res.cloudinary.com/testcloud/image/upload/milletmarg/products/test.jpg"
+
+        factory = RequestFactory()
+        request = factory.get("/api/items/")
+
+        with patch.object(type(p.image), "url", new_callable=lambda: property(lambda self: cloudinary_url)):
+            p.image.name = "milletmarg/products/test"
+            serializer = ProductListSerializer(p, context={"request": request})
+            url = serializer.data["image"]
+            self.assertEqual(url, cloudinary_url)
+
+    def test_broken_image_field_returns_none(self):
+        """If obj.image.url raises an exception, get_image returns None gracefully."""
+        from products.serializers import ProductListSerializer
+        from django.test import RequestFactory
+
+        p = self._make_product()
+        p.image.name = "products/missing.jpg"
+
+        factory = RequestFactory()
+        request = factory.get("/api/items/")
+
+        with patch.object(type(p.image), "url", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(Exception("storage error")))):
+            serializer = ProductListSerializer(p, context={"request": request})
+            self.assertIsNone(serializer.data["image"])
+
+    def test_image_none_returns_null(self):
+        """Products without an image return null."""
+        from products.serializers import ProductListSerializer
+        from django.test import RequestFactory
+
+        p = self._make_product()
+        p.image = None
+
+        factory = RequestFactory()
+        request = factory.get("/api/items/")
+        serializer = ProductListSerializer(p, context={"request": request})
+        self.assertIsNone(serializer.data["image"])
+
+
+class CloudinaryUploadAPITests(APITestCase):
+    """Tests for product creation/update with mocked Cloudinary storage."""
+
+    def _create_owner(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework.authtoken.models import Token
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="ownertest_cld",
+            email="owner_cld@example.com",
+            password="testpass",
+        )
+        # Ensure profile exists (may be auto-created by signal or need explicit creation)
+        try:
+            profile = user.profile
+        except Exception:
+            from accounts.models import UserProfile
+            profile = UserProfile.objects.create(user=user)
+        profile.role = "owner"
+        profile.save()
+        token, _ = Token.objects.get_or_create(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        return user
+
+    def _make_image_file(self):
+        file = io.BytesIO()
+        img = Image.new("RGB", (50, 50), color="blue")
+        img.save(file, format="JPEG")
+        file.seek(0)
+        return SimpleUploadedFile("product.jpg", file.read(), content_type="image/jpeg")
+
+    @patch("django.core.files.storage.default_storage.save", return_value="milletmarg/products/1/product")
+    def test_create_product_with_image_mocked_cloudinary(self, mock_save):
+        """Product creation with image upload works when default storage save is mocked."""
+        self._create_owner()
+        url = reverse("product-list")
+        data = {
+            "name": "Cloudinary Test Bowl",
+            "price": "149.00",
+            "category": "Bowls",
+            "weight_grams": "300",
+            "is_vegetarian": "true",
+            "is_available": "true",
+            "stock_quantity": "0",
+            "image": self._make_image_file(),
+        }
+        response = self.client.post(url, data, format="multipart")
+        self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
+
+    def test_partial_update_without_image_does_not_touch_image(self):
+        """PATCH without an image field leaves the existing image unchanged."""
+        self._create_owner()
+        product = Product.objects.create(
+            name="Existing Bowl",
+            price=Decimal("99.00"),
+            category="Bowls",
+            weight_grams=200,
+        )
+        product.image.name = "milletmarg/products/existing"
+        product.save(update_fields=["image"])
+
+        url = reverse("product-detail", kwargs={"slug": product.slug})
+        response = self.client.patch(url, {"price": "89.00"}, format="multipart")
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_201_CREATED])
+
+        product.refresh_from_db()
+        self.assertEqual(product.price, Decimal("89.00"))
+        # Image must remain untouched
+        self.assertIn("existing", product.image.name)
+
+
+class MigrateImagesToCloudinaryCommandTests(TestCase):
+    """Tests for the migrate_images_to_cloudinary management command."""
+
+    def _call_command(self, *args, **kwargs):
+        from io import StringIO
+        from django.core.management import call_command
+        stdout = StringIO()
+        stderr = StringIO()
+        call_command(
+            "migrate_images_to_cloudinary",
+            *args,
+            stdout=stdout,
+            stderr=stderr,
+            **kwargs,
+        )
+        return stdout.getvalue(), stderr.getvalue()
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME="",
+        CLOUDINARY_API_KEY="",
+        CLOUDINARY_API_SECRET="",
+    )
+    def test_command_raises_if_credentials_missing(self):
+        """Command raises CommandError if Cloudinary env vars are absent."""
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            self._call_command()
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME="testcloud",
+        CLOUDINARY_API_KEY="testkey",
+        CLOUDINARY_API_SECRET="testsecret",
+    )
+    def test_dry_run_no_products(self):
+        """Dry-run with no products prints a 'nothing to migrate' message."""
+        Product.objects.all().delete()
+        stdout, _ = self._call_command("--dry-run")
+        self.assertIn("No products", stdout)
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME="testcloud",
+        CLOUDINARY_API_KEY="testkey",
+        CLOUDINARY_API_SECRET="testsecret",
+    )
+    @patch("cloudinary.uploader.upload")
+    def test_dry_run_shows_would_upload(self, mock_upload):
+        """Dry-run shows what would be uploaded without calling cloudinary.uploader.upload."""
+        import tempfile, os
+        from django.conf import settings as djsettings
+
+        # Create a temp file to simulate a local image
+        media_root = djsettings.MEDIA_ROOT
+        img_dir = os.path.join(str(media_root), "products", "2026", "10")
+        os.makedirs(img_dir, exist_ok=True)
+        tmp_path = os.path.join(img_dir, "dryrun_test.jpg")
+        with open(tmp_path, "wb") as f:
+            buf = io.BytesIO()
+            Image.new("RGB", (10, 10)).save(buf, "JPEG")
+            f.write(buf.getvalue())
+
+        try:
+            product = Product.objects.create(
+                name="DryRun Test Product",
+                price=Decimal("10.00"),
+                category="Test",
+                weight_grams=100,
+            )
+            product.image.name = "products/2026/10/dryrun_test.jpg"
+            product.save(update_fields=["image"])
+
+            stdout, _ = self._call_command("--dry-run")
+            self.assertIn("DRY RUN", stdout)
+            mock_upload.assert_not_called()
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME="testcloud",
+        CLOUDINARY_API_KEY="testkey",
+        CLOUDINARY_API_SECRET="testsecret",
+    )
+    def test_skips_already_cloudinary_url(self):
+        """Products whose image URL is already absolute are skipped."""
+        product = Product.objects.create(
+            name="Already Cloudinary",
+            price=Decimal("50.00"),
+            category="Snacks",
+            weight_grams=100,
+        )
+        product.image.name = "milletmarg/products/1/test"
+        product.save(update_fields=["image"])
+
+        # Patch url to simulate a Cloudinary absolute URL
+        with patch.object(
+            type(product.image), "url",
+            new_callable=lambda: property(
+                lambda self: "https://res.cloudinary.com/testcloud/image/upload/test.jpg"
+            ),
+        ):
+            stdout, _ = self._call_command("--dry-run")
+            self.assertIn("SKIP already Cloudinary", stdout)

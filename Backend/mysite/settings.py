@@ -139,6 +139,66 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ---------------------------------------------------------------------------
+# Cloudinary – product image storage
+# Set all three variables in Backend/.env to enable Cloudinary.
+# If any variable is missing, local file storage is used as a fallback.
+# The API Secret is NEVER exposed to the frontend or API responses.
+# ---------------------------------------------------------------------------
+CLOUDINARY_CLOUD_NAME = config("CLOUDINARY_CLOUD_NAME", default="")
+CLOUDINARY_API_KEY = config("CLOUDINARY_API_KEY", default="")
+CLOUDINARY_API_SECRET = config("CLOUDINARY_API_SECRET", default="")
+
+_CLOUDINARY_CONFIGURED = bool(
+    CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET
+)
+
+if _CLOUDINARY_CONFIGURED:
+    import cloudinary
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+        "API_KEY": CLOUDINARY_API_KEY,
+        "API_SECRET": CLOUDINARY_API_SECRET,
+        "SECURE": True,
+        # Store all product images under a dedicated folder
+        "MEDIA_TAG": "milletmarg",
+        "PREFIX": "milletmarg/products",
+    }
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    # Inject cloudinary apps only when credentials are present
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'cloudinary_storage',          # must be before staticfiles
+        'django.contrib.staticfiles',
+        'cloudinary',
+        # Third-party apps
+        'corsheaders',
+        'rest_framework',
+        'rest_framework.authtoken',
+        'django_filters',
+        # Local apps
+        'products.apps.ProductsConfig',
+        'accounts.apps.AccountsConfig',
+        'orders.apps.OrdersConfig',
+    ]
+
 # CORS configuration for Next.js / React dev frontend
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",

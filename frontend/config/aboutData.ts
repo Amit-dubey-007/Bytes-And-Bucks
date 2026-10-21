@@ -67,22 +67,22 @@ export interface ShopConfig {
 }
 
 export const shopConfig: ShopConfig = {
-  name: "MilletMarg Café & Wellness Kitchen",
-  tagline: "Modern Millimilastic Wellness with a Touch of Farm",
-  addressLine1: "42 Harvest Avenue",
-  addressLine2: "Green Quarter, Near Farmer's Guild",
-  cityStateZip: "[City, State - PIN Code]",
+  name: "Millet-Marg | Healthy Cafe & Millet Store",
+  tagline: "Farm-to-Table Millet Nutrition — Indore, Madhya Pradesh",
+  addressLine1: "Millet-Marg | Healthy Cafe & Millet Store",
+  addressLine2: "Indore, Madhya Pradesh",
+  cityStateZip: "Indore, MP",
   country: "India",
   // Google Maps Directions link for the CTA button
-  googleMapsDirectionsUrl: "https://maps.google.com/?q=MilletMarg+Cafe",
-  // Responsive Google Maps Embed iframe src (replace with actual Google Maps embed link)
+  googleMapsDirectionsUrl: "https://www.google.com/maps/place/Millet+-+marg+%7C+Healthy+Cafe+%26+Millet+Store/@22.6955176,75.8307504,17z/data=!3m1!4b1!4m6!3m5!1s0x3962fd00372bf78b:0xb1d9bc3607fb0cd9!8m2!3d22.6955176!4d75.8333253!16s%2Fg%2F11wy5sb767?entry=ttu",
+  // Responsive Google Maps Embed iframe src
   googleMapsEmbedUrl:
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d112061.234567!2d77.2090!3d28.6139!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDM2JzUwLjAiTiA3N8KwMTInMzIuNCJF!5e0!3m2!1sen!2sin!4v1600000000000!5m2!1sen!2sin",
-  phone: "+91 (0) [Insert Phone Number]",
-  email: "hello@milletmarg.com",
+    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3681.5!2d75.8307504!3d22.6955176!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fd00372bf78b%3A0xb1d9bc3607fb0cd9!2sMillet%20-%20marg%20%7C%20Healthy%20Cafe%20%26%20Millet%20Store!5e0!3m2!1sen!2sin!4v1698000000000!5m2!1sen!2sin",
+  phone: "+91 7566713573",
+  email: "tivafoods@gmail.com",
   openingHours: {
-    weekdays: "Monday – Friday: 8:00 AM – 8:30 PM",
-    weekends: "Saturday – Sunday: 9:00 AM – 9:00 PM",
+    weekdays: "Monday – Friday: 9:00 AM – 9:00 PM",
+    weekends: "Saturday – Sunday: Closed",
   },
   note: "Indoor & open-air seating available · Takeaway counter · Fresh batches daily",
 };
@@ -90,27 +90,39 @@ export const shopConfig: ShopConfig = {
 export const foundersList: Founder[] = [
   {
     id: "founder-1",
-    name: "[Founder Name 1]",
-    role: "Co-Founder & Culinary Director",
-    image: "/placeholders/founder-1.svg",
-    imageAlt: "Portrait of MilletMarg Co-Founder",
-    bio: "Passionate about reviving ancient Indian grains and translating ancestral recipes into accessible, contemporary cafe experiences.",
+    name: "Raksha Acharya",
+    role: "Director & Co-Founder",
+    image: "/founders/raksha-acharya-clean.png",
+    imageAlt: "Portrait of Raksha Acharya, Director of Tiva Food Services Private Limited",
+    bio: "Raksha Acharya is an Indian corporate executive and Director of Tiva Food Services Private Limited, a private company incorporated in India. She serves as part of the primary board of directors, managing the enterprise alongside co-directors such as Tanmay Acharya. Her leadership brings a strong foundation in food service operations and corporate governance to MilletMarg.",
     motivation:
-      "Growing up with traditional kitchen wisdom, our founder noticed how refined grains replaced nutritious millets in urban diets and set out to bridge that divide.",
+      "Driven by a deep belief that India's traditional grains deserve a modern stage, Raksha set out to build a food brand that bridges heritage with contemporary wellness — making millets not just nutritious, but truly craveable.",
     vision:
-      "To build a brand where enjoying wholesome millets is effortless, craveable, and celebrated across all generations.",
+      "To establish MilletMarg as a trusted household name that champions India's millet heritage while inspiring a new generation to embrace thoughtful, grain-forward eating.",
   },
   {
     id: "founder-2",
-    name: "[Founder Name 2]",
-    role: "Co-Founder & Head of Sourcing",
-    image: "/placeholders/founder-2.svg",
-    imageAlt: "Portrait of MilletMarg Co-Founder",
-    bio: "Dedicated to agricultural heritage, connecting conscious consumers with the origins of ancient supergrains.",
+    name: "Tanmay Acharya",
+    role: "Managing Director & Co-Founder",
+    image: "/founders/tanmay-acharya-clean.png",
+    imageAlt: "Portrait of Tanmay Acharya, Managing Director of Tiva Food Services Private Limited",
+    bio: "Tanmay Acharya is an entrepreneur and the Managing Director of Tiva Food Services Private Limited. He leads the company with clear purpose and is the vision behind MilletMarg — a dedicated healthy food and café brand focused on introducing nutritious, farm-to-table millet-based nutrition to modern households across India.",
     motivation:
-      "Inspired by the resilience of rain-fed millets and the craftsmanship of rural growers, working to champion sustainable food culture.",
+      "Believing that true wellness starts at the table, Tanmay envisioned MilletMarg as a bridge between India's rich agricultural heritage and the health-conscious choices of today's generation — bringing millets from the farm directly to the fork.",
     vision:
-      "Making MilletMarg a beacon for conscious hospitality that respects the land, the farmer, and the health of our community.",
+      "To scale MilletMarg into a nationally recognized brand that redefines how Indians eat, making millet-based nutrition a delicious, accessible, and everyday lifestyle choice.",
+  },
+  {
+    id: "founder-3",
+    name: "Smt. Vandana Acharya",
+    role: "Director & Co-Founder",
+    image: "/founders/vandana-acharya-clean.png",
+    imageAlt: "Portrait of Smt. Vandana Acharya, Director of Tiva Food Services Private Limited",
+    bio: "Smt. Vandana Acharya serves as a Director at Tiva Food Services Private Limited, an Indore-based company operating in the food and beverage industry. An integral member of the Board of Directors since its incorporation on August 1, 2020, she plays a central role in guiding the strategic operations of the enterprise from its headquarters in Madhya Pradesh.",
+    motivation:
+      "With a deep-rooted connection to India's culinary traditions, Vandana brings wisdom and purpose to every strategic decision — ensuring MilletMarg stays true to its promise of wholesome, authentic, and nourishing food for every household.",
+    vision:
+      "To see MilletMarg grow into a movement that honours India's food legacy while empowering communities through nutrition, conscious choices, and sustainable food practices.",
   },
 ];
 

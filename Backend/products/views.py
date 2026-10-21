@@ -70,3 +70,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             {"detail": f"Marked {updated} product(s) as out of stock for today."},
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=False, methods=['post'], url_path='mark-all-in-stock',
+            permission_classes=[permissions.IsAuthenticated])
+    def mark_all_in_stock(self, request):
+        """
+        Owner action: mark ALL products as available (back in stock).
+        Sets is_available=True on every product.
+        """
+        updated = Product.objects.all().update(is_available=True)
+        return Response(
+            {"detail": f"Marked {updated} product(s) as back in stock."},
+            status=status.HTTP_200_OK,
+        )

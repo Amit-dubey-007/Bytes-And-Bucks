@@ -238,6 +238,12 @@ export async function markAllOutOfStock(): Promise<{ detail: string }> {
   });
 }
 
+export async function markAllInStock(): Promise<{ detail: string }> {
+  return apiRequest<{ detail: string }>("/items/mark-all-in-stock/", {
+    method: "POST",
+  });
+}
+
 // ----------------- Addresses -----------------
 
 export interface AddressData {

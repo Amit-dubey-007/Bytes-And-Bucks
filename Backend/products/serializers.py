@@ -33,12 +33,22 @@ class ProductListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_image(self, obj):
+        """Return absolute image URL.
+        Cloudinary URLs are already absolute (https://res.cloudinary.com/...).
+        Local dev URLs are relative paths that need request context.
+        """
         if not obj.image:
             return None
-        request = self.context.get('request')
+        try:
+            url = obj.image.url
+        except Exception:
+            return None
+        if url.startswith(("http://", "https://", "//")):
+            return url
+        request = self.context.get("request")
         if request is not None:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+            return request.build_absolute_uri(url)
+        return url
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -71,12 +81,22 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_image(self, obj):
+        """Return absolute image URL.
+        Cloudinary URLs are already absolute (https://res.cloudinary.com/...).
+        Local dev URLs are relative paths that need request context.
+        """
         if not obj.image:
             return None
-        request = self.context.get('request')
+        try:
+            url = obj.image.url
+        except Exception:
+            return None
+        if url.startswith(("http://", "https://", "//")):
+            return url
+        request = self.context.get("request")
         if request is not None:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+            return request.build_absolute_uri(url)
+        return url
 
 
 class ProductWriteSerializer(serializers.ModelSerializer):
