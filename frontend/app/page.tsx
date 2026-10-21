@@ -89,7 +89,7 @@ export default function Home() {
               <div className="lg:col-span-6 relative">
                 <div className="relative aspect-square max-w-[480px] mx-auto rounded-[32px] sm:rounded-[44px] overflow-hidden shadow-xl border border-[#EDE2CF]">
                   <Image
-                    src="/millet-bowl-hero2.jpg"
+                    src="/millet-bowl-hero3.jpg"
                     alt="Wholesome MilletBowl detail"
                     fill
                     className="object-cover"
