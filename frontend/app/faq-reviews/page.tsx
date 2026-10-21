@@ -165,13 +165,13 @@ export default function FAQReviewsPage() {
               Got Questions?
               <br />
               <span className="italic text-[#C66A45]">
-                We&apos;ve Got Answers.
+                We&apos;ve Got Answers
               </span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[#252820]/75 sm:text-lg">
               Everything you need to know about our millet-based food, products,
-              and café. Discover what makes MilletMarg different.
+              and café. Discover what makes MilletMarg different
             </p>
 
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -223,12 +223,12 @@ export default function FAQReviewsPage() {
                 A little clarity,
                 <br />
                 <span className="italic text-[#C66A45]">
-                  one question at a time.
+                  one question at a time
                 </span>
               </h2>
 
               <p className="mt-4 text-sm leading-7 text-[#252820]/70 sm:text-base">
-                Browse the questions below to learn more about MilletMarg.
+                Browse the questions below to learn more about MilletMarg
               </p>
             </div>
 

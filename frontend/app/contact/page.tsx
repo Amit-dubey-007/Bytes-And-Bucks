@@ -64,7 +64,7 @@ export default function ContactPage() {
               <h1 className="mt-6 font-serif text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
                 We Would Love to{" "}
                 <span className="italic text-[#C66A45]">
-                  Hear from You.
+                  Hear from You
                 </span>
               </h1>
 
@@ -115,7 +115,7 @@ export default function ContactPage() {
             <div className="relative mx-auto w-full max-w-xl">
               <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[#EDE2CF]">
                 <Image
-                  src="/millet-bowl-hero.jpg"
+                  src="/millet-bowl-hero2.jpg"
                   alt="Wholesome millet-inspired food at MilletMarg"
                   fill
                   priority
@@ -126,9 +126,7 @@ export default function ContactPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#10291E]/80 via-transparent to-transparent" />
 
                 <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-[#D8A641]">
-                    Welcome to MilletMarg
-                  </p>
+                  
 
                   <h2 className="mt-3 max-w-md font-serif text-3xl font-bold leading-tight text-white sm:text-4xl">
                     Good Food. Good Roots. Good Living.

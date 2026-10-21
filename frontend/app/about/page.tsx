@@ -50,9 +50,9 @@ export default function AboutPage() {
               </span>
 
               <h1 className="mt-6 font-serif text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Rooted in Tradition.
+                Rooted in Tradition
                 <span className="mt-2 block font-normal italic text-[#C66A45]">
-                  Growing for Tomorrow.
+                  Growing for Tomorrow
                 </span>
               </h1>
 
@@ -111,7 +111,7 @@ export default function AboutPage() {
             <div className="relative mx-auto w-full max-w-lg">
               <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#EDE2CF]">
                 <Image
-                  src="/millet-bowl-hero.jpg"
+                  src="/millet-bowl-hero1.jpg"
                   alt="MilletMarg's wholesome millet-inspired food"
                   fill
                   priority
@@ -122,10 +122,7 @@ export default function AboutPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#10291E]/80 via-transparent to-transparent" />
 
                 <div className="absolute bottom-0 p-6 sm:p-8">
-                  <span className="rounded-full bg-[#D8A641] px-3 py-1.5 text-xs font-semibold text-[#10291E]">
-                    Our Philosophy
-                  </span>
-
+                  
                   <h2 className="mt-4 max-w-sm font-serif text-3xl font-bold leading-tight text-white sm:text-4xl">
                     Bringing Our Food Heritage Back to the Table
                   </h2>
