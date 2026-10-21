@@ -13,6 +13,7 @@ import {
   getAuthToken,
   ApiError,
 } from "@/lib/api";
+import { getShopStatus } from "@/lib/shopHours";
 import {
   Package,
   ShoppingBag,
@@ -40,6 +41,7 @@ function ProductDetailContent() {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
+  const [shopClosedMsg, setShopClosedMsg] = useState<string | null>(null);
 
   const loadProduct = useCallback(async () => {
     if (!slug) return;
@@ -66,6 +68,15 @@ function ProductDetailContent() {
 
   const handleAddToCart = async () => {
     if (!product) return;
+
+    // Check shop hours at click time
+    const shopStatus = getShopStatus();
+    if (!shopStatus.isOpen) {
+      setShopClosedMsg(shopStatus.reason);
+      return;
+    }
+    setShopClosedMsg(null);
+
     const token = getAuthToken();
     if (!token) {
       router.push(`/profile?redirect=/products/${product.slug}`);
@@ -90,6 +101,15 @@ function ProductDetailContent() {
 
   const handleOrderNow = () => {
     if (!product) return;
+
+    // Check shop hours at click time
+    const shopStatus = getShopStatus();
+    if (!shopStatus.isOpen) {
+      setShopClosedMsg(shopStatus.reason);
+      return;
+    }
+    setShopClosedMsg(null);
+
     const token = getAuthToken();
     if (!token) {
       router.push(`/profile?redirect=/checkout?buy_now=${product.slug}&quantity=${quantity}`);
@@ -127,6 +147,13 @@ function ProductDetailContent() {
             >
               View Cart &rarr;
             </Link>
+          </div>
+        )}
+
+        {shopClosedMsg && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{shopClosedMsg}</span>
           </div>
         )}
 
@@ -225,11 +252,11 @@ function ProductDetailContent() {
                     {product.is_available ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        In Stock ({product.stock_quantity > 0 ? `${product.stock_quantity} available` : "Freshly Made"})
+                        Available
                       </span>
                     ) : (
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                        Sold Out
+                        Unavailable
                       </span>
                     )}
                   </div>

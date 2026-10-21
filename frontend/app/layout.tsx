@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -32,6 +33,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen flex flex-col bg-[#F7F1E5] text-[#183D2B] font-sans selection:bg-[#D8A641]/30 selection:text-[#183D2B]">
         {children}
+        <ChatbotWidget />
       </body>
     </html>
   );

@@ -27,63 +27,88 @@ const faqs = [
     category: "Products",
     question: "What makes millet-based food special?",
     answer:
-      "Millets are traditional grains that bring variety, texture, and goodness to everyday meals. MilletMarg explores creative ways to enjoy these grains through wholesome bowls, snacks, and other millet-based dishes.",
+      "Millets are ancient Indian supergrains packed with nutritional benefits that refined grains simply cannot match. They are rich in dietary fibre, plant-based protein, iron, calcium, and essential B vitamins. Millets have a low glycaemic index, which means they release energy slowly and help maintain stable blood sugar levels — making them ideal for everyday wellness. At MilletMarg, we celebrate these traditional grains by crafting wholesome, flavourful, farm-to-table dishes that make eating well a genuine pleasure.",
   },
   {
     category: "Products",
     question: "What types of millet products do you offer?",
     answer:
-      "Our menu focuses on creative millet-based food, including millet bowls, salads, millet-based noodles, shakes, and other innovative dishes. Visit our Products page to explore the current selection.",
+      "MilletMarg offers a curated range of millet-based food and café dishes including millet bowls, millet-based noodles, millet salads, healthy shakes and beverages, and seasonal specials. Our menu is built around the belief that nutritious food should also be delicious and satisfying. We use a variety of millets such as foxtail millet (kangni), finger millet (ragi), pearl millet (bajra), sorghum (jowar), and little millet to keep our offerings diverse and interesting. Visit our Products page to explore the full current menu.",
   },
   {
     category: "Products",
     question: "Are your products suitable for gluten-free diets?",
     answer:
-      "Many millets are naturally gluten-free, but recipes and preparation methods can vary. Please contact our team to confirm the ingredients and cross-contamination precautions for a specific product before ordering.",
+      "Most millets are naturally gluten-free, making them an excellent grain choice for people with gluten sensitivity or those avoiding wheat. Foxtail millet, ragi, bajra, jowar, and little millet are all inherently free of gluten. However, some of our dishes may be prepared in kitchens that also handle wheat-based ingredients. If you have a strict gluten intolerance or coeliac disease, we recommend contacting our team directly before ordering so we can confirm the preparation process and ingredients for a specific dish.",
   },
   {
     category: "Products",
     question: "Do you offer vegan options?",
     answer:
-      "Some dishes may be adaptable to different dietary preferences. Please contact our team to confirm which products are vegan and whether ingredient substitutions are available.",
+      "Yes! A significant portion of our menu is plant-based and vegan-friendly. Millets themselves are 100% plant-based, and many of our bowls and dishes are prepared with fresh vegetables, legumes, seeds, and natural seasonings. We are happy to guide you to suitable options. Please let our team know your dietary preference when ordering and we will ensure your meal is tailored accordingly.",
+  },
+  {
+    category: "Products",
+    question: "Are millets good for weight management?",
+    answer:
+      "Millets can be a great ally in weight management. Their high dietary fibre content promotes satiety — keeping you fuller for longer and reducing unnecessary snacking. Their low glycaemic index prevents blood sugar spikes that often lead to cravings. Additionally, millets are nutrient-dense, meaning you get significant vitamins and minerals without excess calories. When consumed as part of a balanced diet, millet-based meals at MilletMarg make for a satisfying, wholesome, and mindful approach to everyday eating.",
   },
   {
     category: "Orders & Delivery",
     question: "How can I explore your products?",
     answer:
-      "Visit our Products page to browse the available menu and discover millet-based food options. For ordering assistance, contact our team directly.",
+      "You can browse our full menu and product selection on the Products page of our website. Each item is described with its key ingredients and millet type so you can make an informed choice. For the freshest experience, we also recommend visiting us directly at our café in Indore, Madhya Pradesh, where our team can walk you through the day's offerings.",
   },
   {
     category: "Orders & Delivery",
     question: "Do you offer home delivery?",
     answer:
-      "Delivery availability may depend on your location and the current ordering arrangements. Please contact MilletMarg directly to confirm whether delivery is available in your area.",
+      "We primarily serve customers through our café in Indore, Madhya Pradesh. For delivery availability in and around Indore, please contact us directly via phone at +91 7566713573 or email us at tivafoods@gmail.com. Our team will confirm current delivery arrangements and coverage areas. You can also reach us on WhatsApp for a quick response.",
   },
   {
     category: "Orders & Delivery",
     question: "How can I ask about an order?",
     answer:
-      "You can reach our team through the Contact Us page or WhatsApp. Share your query and any relevant order details so the team can assist you.",
+      "For any order-related queries, you can reach us through multiple channels. Call or WhatsApp us at +91 7566713573, email us at tivafoods@gmail.com, or use the Contact Us page on our website. Please share your name, order details, and preferred contact time and our team will get back to you promptly.",
   },
   {
     category: "Café",
     question: "Where is MilletMarg located?",
     answer:
-      "MilletMarg is located in Indore, Madhya Pradesh, India. Visit our Contact Us page for location information and directions.",
+      "MilletMarg — Healthy Cafe & Millet Store is located in Indore, Madhya Pradesh, India. Indore is a vibrant food city and we are proud to bring millet-based nutrition to its heart. You can find our exact location, get turn-by-turn directions, and view us on Google Maps by visiting our Contact Us page and clicking 'Get Directions'.",
   },
   {
     category: "Café",
     question: "What are your café opening hours?",
     answer:
-      "Our listed café hours are 12:00 AM to 10:45 PM, all days. We recommend contacting the café to confirm its current operating hours before visiting.",
+      "Our café is open Monday through Friday from 9:00 AM to 9:00 PM. We are currently closed on Saturdays and Sundays. We recommend calling ahead at +91 7566713573 to confirm hours on public holidays or during special events. We look forward to welcoming you!",
+  },
+  {
+    category: "Café",
+    question: "Do you have seating available at the café?",
+    answer:
+      "Yes, MilletMarg offers a comfortable café experience with indoor seating. We also have a takeaway counter for those on the go. The space is designed to be warm, welcoming, and in line with our philosophy of mindful, wholesome living. Whether you want to dine in or grab a quick millet bowl to go, we have got you covered.",
   },
   {
     category: "General",
     question: "How can I contact MilletMarg?",
     answer:
-      "You can reach us through the Contact Us page, email, phone, or WhatsApp. Our team can help with questions about products, the café, and other enquiries.",
+      "You can reach the MilletMarg team through several ways: Call or WhatsApp us at +91 7566713573, email us at tivafoods@gmail.com, or fill out the form on our Contact Us page. You can also follow us and send a message on Instagram (@milletmarg) or Facebook (Milletmarg). We typically respond within one business day and are happy to answer any questions about our products, café, or the MilletMarg story.",
+  },
+  {
+    category: "General",
+    question: "Who is behind MilletMarg?",
+    answer:
+      "MilletMarg is founded by Tanmay Acharya, Raksha Acharya, and Smt. Vandana Acharya — the core team behind Tiva Food Services Private Limited, incorporated in Indore, Madhya Pradesh on August 1, 2020. Tanmay Acharya, the Managing Director, is the entrepreneur and visionary behind the brand's mission to make millet-based nutrition accessible and enjoyable. The founding team shares a deep passion for India's agricultural heritage and a commitment to bringing farm-to-table millet food into modern everyday life.",
+  },
+  {
+    category: "General",
+    question: "Why does MilletMarg focus on millets specifically?",
+    answer:
+      "India has been cultivating and consuming millets for thousands of years. Grains like ragi, bajra, jowar, and foxtail millet were staples of Indian diets long before refined wheat and white rice took over urban kitchens. Millets are not only nutritionally superior but also drought-resistant and environmentally sustainable — requiring far less water to grow than rice or wheat. At MilletMarg, we believe bringing millets back to modern tables is both a cultural celebration and a step towards healthier, more responsible food choices for individuals and the planet.",
   },
 ];
+
 
 const testimonials = [
   {

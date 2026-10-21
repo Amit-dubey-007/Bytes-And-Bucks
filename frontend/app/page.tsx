@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import BrandHighlights from "@/components/BrandHighlights";
@@ -68,13 +69,13 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 pt-4">
-                  <a
-                    href="#order"
+                  <Link
+                    href="/products/millet-bowl"
                     className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#183D2B] text-[#F7F1E5] font-semibold text-sm hover:bg-[#10291E] transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <span>Order MilletBowl ($14.50)</span>
+                    <span>Order MilletBowl (₹249)</span>
                     <ArrowRight className="w-4 h-4" />
-                  </a>
+                  </Link>
                   <a
                     href="#menu"
                     className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-[#183D2B]/30 text-[#183D2B] font-medium text-sm hover:bg-[#EDE2CF]/60 transition-colors"

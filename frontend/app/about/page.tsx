@@ -135,19 +135,17 @@ export default function AboutPage() {
                     contemporary perspective.
                   </p>
                 </div>
-              </div>
 
-              <div className="absolute -bottom-5 -left-3 rounded-2xl border border-[#EDE2CF] bg-white p-4 shadow-lg sm:-left-6 sm:p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EDE2CF]">
-                    <Leaf className="h-6 w-6 text-[#C66A45]" />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-bold">Inspired by Nature</p>
-                    <p className="mt-1 text-xs text-[#879568]">
-                      Rooted in tradition
-                    </p>
+                {/* "Inspired by Nature" badge — top-right, away from bottom text */}
+                <div className="absolute top-4 right-4 z-10 rounded-2xl border border-white/20 bg-white/95 backdrop-blur-sm p-3.5 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDE2CF]">
+                      <Leaf className="h-5 w-5 text-[#C66A45]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#183D2B]">Inspired by Nature</p>
+                      <p className="mt-0.5 text-xs text-[#879568]">Rooted in tradition</p>
+                    </div>
                   </div>
                 </div>
               </div>

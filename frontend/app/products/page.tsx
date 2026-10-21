@@ -12,6 +12,7 @@ import {
   ProductData,
   getAuthToken,
 } from "@/lib/api";
+import { getShopStatus } from "@/lib/shopHours";
 import {
   Package,
   ShoppingBag,
@@ -36,6 +37,7 @@ function ProductsPageContent() {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shopClosedMsg, setShopClosedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (urlQuery) {
@@ -81,6 +83,14 @@ function ProductsPageContent() {
   }, [searchQuery, selectedCategory]);
 
   const handleAddToCart = async (product: ProductData) => {
+    // Check shop hours on click
+    const shopStatus = getShopStatus();
+    if (!shopStatus.isOpen) {
+      setShopClosedMsg(shopStatus.reason);
+      return;
+    }
+    setShopClosedMsg(null);
+
     const token = getAuthToken();
     if (!token) {
       router.push(`/profile?redirect=/products`);
@@ -104,6 +114,14 @@ function ProductsPageContent() {
   };
 
   const handleBuyNow = (product: ProductData) => {
+    // Check shop hours on click
+    const shopStatus = getShopStatus();
+    if (!shopStatus.isOpen) {
+      setShopClosedMsg(shopStatus.reason);
+      return;
+    }
+    setShopClosedMsg(null);
+
     const token = getAuthToken();
     if (!token) {
       router.push(`/profile?redirect=/checkout?buy_now=${product.slug}`);
@@ -152,6 +170,13 @@ function ProductsPageContent() {
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center gap-2 shadow-sm">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {shopClosedMsg && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{shopClosedMsg}</span>
           </div>
         )}
 
@@ -287,7 +312,7 @@ function ProductsPageContent() {
 
                     {!product.is_available && (
                       <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                        Sold Out
+                        Unavailable
                       </span>
                     )}
                   </div>
