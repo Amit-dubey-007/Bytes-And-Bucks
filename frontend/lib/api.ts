@@ -2,7 +2,7 @@
  * API client for MilletMarg backend communication.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 
 const TOKEN_KEY = "milletmarg_auth_token";
 
@@ -74,7 +74,8 @@ async function apiRequest<T>(
     headers["Authorization"] = `Token ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
     ...options,
     headers,
     credentials: "include",

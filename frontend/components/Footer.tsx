@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -108,6 +110,12 @@ function WhatsAppIcon() {
 // ========================================
 
 export default function Footer() {
+  const [currentYear, setCurrentYear] = useState<number | string>(2026);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
+
   const whatsappMessage = encodeURIComponent(
     "Hello MilletMarg! I would like to know more about your products."
   );
@@ -347,7 +355,7 @@ export default function Footer() {
         {/* COPYRIGHT */}
         <div className="border-t border-[#F7F1E5]/10 py-6 text-center">
           <p className="text-xs leading-5 text-[#F7F1E5]/55">
-            © {new Date().getFullYear()} MilletMarg. All rights reserved.
+            © {currentYear} MilletMarg. All rights reserved.
           </p>
         </div>
       </div>

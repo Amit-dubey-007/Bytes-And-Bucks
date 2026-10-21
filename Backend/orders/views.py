@@ -581,14 +581,14 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             validate_payment_receipt_file(file_obj)
 
             with transaction.atomic():
-                PaymentReceipt.objects.create(
+                receipt_record = PaymentReceipt.objects.create(
                     order=order,
                     receipt_file=file_obj,
                     file_name=file_obj.name,
                     file_size_bytes=file_obj.size,
                     status=Order.PAYMENT_SUBMITTED,
                 )
-                order.payment_receipt = file_obj
+                order.payment_receipt = receipt_record.receipt_file
                 order.payment_status = Order.PAYMENT_SUBMITTED
                 order.payment_submitted_at = timezone.now()
                 order.payment_rejection_reason = ''

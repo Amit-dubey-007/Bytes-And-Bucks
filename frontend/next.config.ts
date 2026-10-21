@@ -35,6 +35,12 @@ const nextConfig: NextConfig = {
         hostname: "res.cloudinary.com",
         pathname: "/**",
       },
+      {
+        // Render backend fallback
+        protocol: "https",
+        hostname: "**.onrender.com",
+        pathname: "/media/**",
+      },
     ],
   },
 };

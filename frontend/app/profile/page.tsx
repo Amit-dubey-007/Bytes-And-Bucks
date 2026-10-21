@@ -212,13 +212,15 @@ function ProfileContent() {
             return;
           }
           if (err?.type === "popup_failed_to_open") {
-            setAuthError("Sign-in popup was blocked by your browser. Please allow popups for localhost:3000.");
+            const currentOrigin = typeof window !== "undefined" ? window.location.origin : "this domain";
+            setAuthError(`Sign-in popup was blocked by your browser. Please allow popups for ${currentOrigin}.`);
             return;
           }
+          const originHint = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
           setAuthError(
             err?.detailed_error ||
             err?.error ||
-            "Google Sign-In failed to load. Please verify that 'http://localhost:3000' is added to Authorized JavaScript origins in Google Cloud Console."
+            `Google Sign-In failed to load. Please verify that '${originHint}' is added to Authorized JavaScript origins in Google Cloud Console.`
           );
         },
       });
@@ -428,7 +430,7 @@ function ProfileContent() {
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-[11px] text-stone-600">
                     <li>
-                      Ensure <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded">http://localhost:3000</code> is added to <strong>Authorized JavaScript origins</strong> in Google Cloud Console.
+                      Ensure your site URL (e.g. <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded">{typeof window !== "undefined" ? window.location.origin : "https://your-domain.vercel.app"}</code> or <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded">http://localhost:3000</code>) is added to <strong>Authorized JavaScript origins</strong> in Google Cloud Console.
                     </li>
                     <li>
                       Disable any browser extension or ad-blocker that might block Google Identity Services popups.

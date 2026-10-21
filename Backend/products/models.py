@@ -64,6 +64,7 @@ class Product(models.Model):
         upload_to='products/%Y/%m/',
         null=True,
         blank=True,
+        max_length=255,
         validators=[validate_product_image],
         help_text="Primary product image (Max 5MB; JPEG, PNG, or WEBP)"
     )

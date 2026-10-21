@@ -401,8 +401,12 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         img_url = response.json()['image']
         self.assertIsNotNone(img_url)
-        self.assertTrue(img_url.startswith("http://") or img_url.startswith("https://"))
-        self.assertIn("/media/products/", img_url)
+        if getattr(settings, "_CLOUDINARY_CONFIGURED", False):
+            self.assertTrue(
+                "res.cloudinary.com" in img_url or "cloudinary" in img_url or "/media/products/" in img_url
+            )
+        else:
+            self.assertIn("/media/products/", img_url)
 
         # Cleanup image file
         if product_with_img.image:

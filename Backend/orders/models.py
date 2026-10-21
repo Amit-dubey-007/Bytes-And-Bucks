@@ -171,6 +171,7 @@ class Order(models.Model):
         upload_to=order_receipt_upload_path,
         null=True,
         blank=True,
+        max_length=255,
         help_text="Latest customer payment proof"
     )
     payment_submitted_at = models.DateTimeField(null=True, blank=True)
@@ -325,7 +326,7 @@ class PaymentReceipt(models.Model):
         on_delete=models.CASCADE,
         related_name='receipt_history'
     )
-    receipt_file = models.FileField(upload_to=order_receipt_upload_path)
+    receipt_file = models.FileField(upload_to=order_receipt_upload_path, max_length=255)
     file_name = models.CharField(max_length=255)
     file_size_bytes = models.PositiveIntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)

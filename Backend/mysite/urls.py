@@ -18,8 +18,20 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """
+    Lightweight health-check endpoint for Render / load-balancers.
+    Returns HTTP 200 without exposing secrets, database internals, or sensitive diagnostics.
+    """
+    return JsonResponse({"status": "ok", "app": "milletmarg"}, status=200)
+
 
 urlpatterns = [
+    path('healthz', health_check, name='healthz'),
+    path('api/health/', health_check, name='api-health'),
     path('admin/', admin.site.urls),
     path('api/', include('products.urls')),
     path('api/', include('accounts.urls')),
@@ -28,4 +40,5 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
