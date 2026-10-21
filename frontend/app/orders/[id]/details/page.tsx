@@ -172,7 +172,7 @@ function OrderDetailsContent() {
 
   const statusDescriptions: Record<string, string> = {
     pending: "Our cafe team is reviewing your order items and stock. We will approve your order shortly.",
-    approved: "Order approved by MilletMarg! Please complete manual payment using the details below.",
+    approved: "Order approved by MilletMarg! Please connect on WhatsApp below to complete payment.",
     preparing: "Your wholesome millet dishes are freshly being prepared in our cafe kitchen.",
     ready_for_dispatch: "Your food is neatly packed and waiting for delivery driver pickup.",
     out_for_delivery: "Your driver is on the way to your delivery address! You can call or WhatsApp them directly.",
@@ -393,37 +393,33 @@ function OrderDetailsContent() {
                   </h2>
                 </div>
 
-                {/* Important Reminder Alert */}
-                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Security verification: </span>
-                    Always verify the recipient name and account number before initiating transfer. Never pay into any account other than the official MilletMarg details shown below.
-                  </div>
+                {/* WhatsApp Payment & Verification Flow */}
+                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3">
+                  <p className="text-sm font-semibold text-[#183D2B] flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-[#25D366]" />
+                    Payment & Verification Process
+                  </p>
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    When you send the auto message on WhatsApp using the button "Chat with Store on WhatsApp", the owner will reply to you with the payment details — they will send you a QR code, UPI ID, or bank details.
+                  </p>
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    After that, please complete your payment and send a photo/screenshot of the payment back on that WhatsApp chat.
+                  </p>
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    Once the owner verifies your payment, they will approve your order. After the owner approves, you can stay completely tension-free! Your payment is verified and you can wait for your order while getting live details about where it reaches in the process right from this page.
+                  </p>
                 </div>
-
-                {/* Payment Instructions Box */}
-                {order.payment_instructions && (
-                  <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-                    <span className="text-xs uppercase font-bold text-stone-500 tracking-wider">
-                      Store Payment Instructions
-                    </span>
-                    <pre className="text-xs font-mono whitespace-pre-wrap text-stone-800 leading-relaxed bg-white p-3 rounded-lg border border-stone-200">
-                      {order.payment_instructions}
-                    </pre>
-                  </div>
-                )}
 
                 {/* Verification Status Banner */}
                 {order.payment_status === "verified" && (
                   <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-xs text-emerald-800">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <div>
-                      <p className="font-bold text-emerald-950">Payment Verified by Store</p>
+                      <p className="font-bold text-emerald-950">Payment Verified by Owner</p>
                       <p className="mt-0.5">
-                        Your manual payment has been verified
+                        Your payment has been verified
                         {order.payment_verified_at && ` on ${new Date(order.payment_verified_at).toLocaleString("en-IN")}`}.
-                        Your fresh millet order is now being fulfilled!
+                        You can be tension-free! Your order is being prepared and you can track live updates below.
                       </p>
                     </div>
                   </div>
@@ -456,23 +452,20 @@ function OrderDetailsContent() {
                   </div>
                 )}
 
-                {/* WhatsApp Payment Notification Action (When not yet verified) */}
+                {/* WhatsApp Payment Action (When not yet verified) */}
                 {order.payment_status !== "verified" && (
                   <div className="pt-2 border-t border-stone-100 space-y-3">
-                    <p className="text-xs text-stone-600">
-                      Payment proof upload is not required. You can pay via UPI or Bank transfer using the store instructions above and notify the store on WhatsApp.
-                    </p>
                     <div>
                       <a
                         href={`https://wa.me/918349309523?text=${encodeURIComponent(
-                          `Hello MilletMarg, I have made payment for Order #${order.reference || order.public_id.slice(0, 8).toUpperCase()} (₹${order.total}).\nName: ${order.recipient_name}\nPhone: ${order.phone_number}\nPlease verify.`
+                          `Hello MilletMarg, I would like to make payment for Order #${order.reference || order.public_id.slice(0, 8).toUpperCase()} (₹${order.total}).\nName: ${order.recipient_name}\nPhone: ${order.phone_number}\nPlease send me the QR code / UPI ID to make payment.`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#20ba59] transition shadow"
                       >
                         <MessageSquare className="w-4 h-4" />
-                        Notify Store on WhatsApp
+                        Send Auto Message on WhatsApp to Pay
                       </a>
                     </div>
                   </div>
