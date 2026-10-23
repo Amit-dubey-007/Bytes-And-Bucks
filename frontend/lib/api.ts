@@ -2,6 +2,8 @@
  * API client for MilletMarg backend communication.
  */
 
+
+
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 
 const TOKEN_KEY = "milletmarg_auth_token";
@@ -196,6 +198,9 @@ export async function getProducts(params?: {
   max_price?: number;
   ordering?: string;
   page?: number;
+  page_size?: number;
+  is_available?: boolean;
+  is_vegetarian?: boolean;
 }): Promise<PaginatedResponse<ProductData>> {
   const query = new URLSearchParams();
   if (params?.search) query.set("search", params.search);
@@ -204,9 +209,41 @@ export async function getProducts(params?: {
   if (params?.max_price !== undefined) query.set("max_price", String(params.max_price));
   if (params?.ordering) query.set("ordering", params.ordering);
   if (params?.page) query.set("page", String(params.page));
+  if (params?.page_size) query.set("page_size", String(params.page_size));
+  if (params?.is_available !== undefined) query.set("is_available", String(params.is_available));
+  if (params?.is_vegetarian !== undefined) query.set("is_vegetarian", String(params.is_vegetarian));
 
   const qs = query.toString();
   return apiRequest<PaginatedResponse<ProductData>>(`/items/${qs ? `?${qs}` : ""}`);
+}
+
+export async function getAllProducts(params?: {
+  category?: string;
+  search?: string;
+  is_available?: boolean;
+  is_vegetarian?: boolean;
+}): Promise<ProductData[]> {
+  const allResults: ProductData[] = [];
+  let page = 1;
+  const maxPages = 20;
+
+  while (page <= maxPages) {
+    const res = await getProducts({
+      ...params,
+      page,
+      page_size: 100,
+    });
+
+    const pageResults = res?.results || [];
+    allResults.push(...pageResults);
+
+    if (!res?.next || allResults.length >= (res?.count ?? 0) || pageResults.length === 0) {
+      break;
+    }
+    page += 1;
+  }
+
+  return allResults;
 }
 
 export async function getProductBySlug(slug: string): Promise<ProductData> {
@@ -772,6 +809,9 @@ export async function submitOrderReview(
 export async function getOwnerReviews(params?: {
   is_visible?: boolean;
   page?: number;
+  page_size?: number;
+  is_available?: boolean;
+  is_vegetarian?: boolean;
 }): Promise<PaginatedResponse<ReviewData>> {
   const query = new URLSearchParams();
   if (params?.is_visible !== undefined) query.set("is_visible", String(params.is_visible));

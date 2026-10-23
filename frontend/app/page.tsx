@@ -2,6 +2,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import BrandHighlights from "@/components/BrandHighlights";
+import QuizPromoSection from "@/components/QuizPromoSection";
 import SeasonalBowlsSection from "@/components/SeasonalBowlsSection";
 import OrderMilletMargSection from "@/components/OrderMilletMargSection";
 import Footer from "@/components/Footer";
@@ -30,6 +31,7 @@ export default function Home() {
       {/* 3. HERO SECTION */}
       <main className="flex-1">
         <HeroSection />
+        <QuizPromoSection />
 
         {/* 4. BRAND HIGHLIGHTS STRIP */}
         <BrandHighlights />
